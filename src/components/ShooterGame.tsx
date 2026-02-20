@@ -378,7 +378,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
 
     const now = timestamp;
     const elapsed = now - g.startTime;
-    const bLevel = Math.min(Math.floor(elapsed / 10_000), 5);
+    const bLevel = Math.min(Math.floor(elapsed / 7_000), 5);
     const gameplayActive = elapsed < GAME_DURATION && g.lives > 0;
 
     // Level up notification
@@ -396,7 +396,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     setElapsed(elapsed);
 
     // Difficulty scaling: speed multiplier increases over time
-    const difficultyMult = 1 + (elapsed / GAME_DURATION) * 0.8;
+    const difficultyMult = 1 + (elapsed / GAME_DURATION) * 2.0;
 
     // ── Player movement (all 4 directions) ──
     if (gameplayActive) {
@@ -437,27 +437,30 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
         playShoot(bLevel);
       }
 
-      // Spawn stars (2x rate, with progressive speed)
-      const starInterval = Math.max(150, 300 - elapsed * 0.003);
+      // Spawn stars (high rate, progressive speed)
+      const starInterval = Math.max(80, 180 - elapsed * 0.004);
       if (now - g.lastStar > starInterval) {
         g.objects.push({
           x: rand(20, w - 20), y: -20, type: 'star',
           size: rand(10, 16),
-          speed: rand(2, 4) * difficultyMult,
+          speed: rand(2.5, 5) * difficultyMult,
           rotation: rand(0, Math.PI * 2),
         });
         g.lastStar = now;
       }
 
-      // Spawn bombs (2x rate, with progressive speed)
-      const bombInterval = Math.max(200, 600 - elapsed * 0.008);
+      // Spawn bombs (10x rate, progressive speed)
+      const bombInterval = Math.max(30, 60 - elapsed * 0.001);
       if (now - g.lastBomb > bombInterval) {
-        g.objects.push({
-          x: rand(20, w - 20), y: -20, type: 'bomb',
-          size: rand(12, 18),
-          speed: rand(1.5, 3.5) * difficultyMult,
-          rotation: 0,
-        });
+        const bombCount = 1 + Math.floor(elapsed / 5000); // more bombs over time
+        for (let bi = 0; bi < Math.min(bombCount, 4); bi++) {
+          g.objects.push({
+            x: rand(20, w - 20), y: -20 - bi * 15, type: 'bomb',
+            size: rand(12, 18),
+            speed: rand(2, 5) * difficultyMult,
+            rotation: 0,
+          });
+        }
         g.lastBomb = now;
       }
     }
@@ -658,7 +661,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
           <div className="max-w-md space-y-3 text-center font-game-body text-lg text-foreground/90">
             <p className="text-accent text-glow-accent text-xl font-semibold">How to Play</p>
             <p>🚀 Move with <span className="text-primary">Arrow Keys / WASD</span> or <span className="text-primary">Touch</span></p>
-            <p>🔫 Auto-fire — bullets <span className="text-secondary">evolve every 10s!</span></p>
+            <p>🔫 Auto-fire — bullets <span className="text-secondary">evolve every 7s!</span></p>
             <p>⭐ Collect <span className="text-accent">Stars</span> for points</p>
             <p>💣 Avoid <span className="text-destructive">Bombs</span> — 3 lives!</p>
             <p>🎯 Shoot bombs to destroy them</p>
