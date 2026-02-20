@@ -8,6 +8,30 @@ function getAudioCtx() {
 
 export function playShoot(level: number) {
   const ctx = getAudioCtx();
+
+  if (level >= 6) {
+    // Machinegun: rapid noise burst
+    const bufferSize = ctx.sampleRate * 0.04;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(2000 + level * 300, ctx.currentTime);
+    filter.Q.setValueAtTime(2, ctx.currentTime);
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
+    noise.start(ctx.currentTime);
+    noise.stop(ctx.currentTime + 0.04);
+    return;
+  }
+
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.connect(gain);
@@ -40,8 +64,8 @@ export function playStarCollect() {
 
 export function playBombHit() {
   const ctx = getAudioCtx();
-  // Noise burst
-  const bufferSize = ctx.sampleRate * 0.3;
+  // Loud explosion noise
+  const bufferSize = ctx.sampleRate * 0.4;
   const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
   const data = buffer.getChannelData(0);
   for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
@@ -50,15 +74,28 @@ export function playBombHit() {
   const gain = ctx.createGain();
   const filter = ctx.createBiquadFilter();
   filter.type = 'lowpass';
-  filter.frequency.setValueAtTime(800, ctx.currentTime);
-  filter.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.3);
+  filter.frequency.setValueAtTime(1200, ctx.currentTime);
+  filter.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.4);
   noise.connect(filter);
   filter.connect(gain);
   gain.connect(ctx.destination);
-  gain.gain.setValueAtTime(0.25, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+  gain.gain.setValueAtTime(0.35, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
   noise.start(ctx.currentTime);
-  noise.stop(ctx.currentTime + 0.3);
+  noise.stop(ctx.currentTime + 0.4);
+
+  // Sub bass thud
+  const osc = ctx.createOscillator();
+  const oscGain = ctx.createGain();
+  osc.connect(oscGain);
+  oscGain.connect(ctx.destination);
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(80, ctx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.3);
+  oscGain.gain.setValueAtTime(0.3, ctx.currentTime);
+  oscGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + 0.3);
 }
 
 export function playBombDestroy() {

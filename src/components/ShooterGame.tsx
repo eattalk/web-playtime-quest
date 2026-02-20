@@ -31,15 +31,17 @@ const rand = (min: number, max: number) => Math.random() * (max - min) + min;
 const hsl = (h: number, s: number, l: number, a = 1) =>
   a < 1 ? `hsla(${h},${s}%,${l}%,${a})` : `hsl(${h},${s}%,${l}%)`;
 
-// Bullet level config (level 0-5 based on 10s increments)
+// Bullet level config (level 0-7 based on 4s increments)
 function getBulletConfig(level: number) {
   const configs = [
-    { w: 4, h: 12, speed: 7, color: 190, name: 'Basic' },
-    { w: 7, h: 18, speed: 8, color: 200, name: 'Enhanced' },
-    { w: 10, h: 24, speed: 9, color: 280, name: 'Plasma' },
-    { w: 14, h: 30, speed: 10, color: 320, name: 'Nova' },
-    { w: 18, h: 36, speed: 11, color: 45, name: 'Solar' },
-    { w: 24, h: 42, speed: 12, color: 0, name: 'Inferno' },
+    { w: 4, h: 12, speed: 7, color: 190, name: 'Basic', interval: 220 },
+    { w: 6, h: 16, speed: 8, color: 200, name: 'Rapid', interval: 180 },
+    { w: 9, h: 20, speed: 9, color: 280, name: 'Plasma', interval: 140 },
+    { w: 12, h: 26, speed: 10, color: 320, name: 'Nova', interval: 110 },
+    { w: 16, h: 32, speed: 11, color: 45, name: 'Solar', interval: 80 },
+    { w: 20, h: 36, speed: 12, color: 0, name: 'Inferno', interval: 60 },
+    { w: 26, h: 42, speed: 13, color: 290, name: 'Machinegun', interval: 40 },
+    { w: 32, h: 48, speed: 14, color: 180, name: 'GODMODE', interval: 30 },
   ];
   return configs[Math.min(level, configs.length - 1)];
 }
@@ -78,6 +80,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     shipHue: 0,
     shakeAmount: 0,
     shakeDecay: 0.9,
+    hitFlashTimer: 0,
   });
 
   const initBgStars = useCallback((w: number, h: number) => {
@@ -428,11 +431,11 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
 
     const now = timestamp;
     const elapsed = now - g.startTime;
-    const bLevel = Math.min(Math.floor(elapsed / 7_000), 5);
+    const bLevel = Math.min(Math.floor(elapsed / 4_000), 7);
     const gameplayActive = elapsed < GAME_DURATION && g.lives > 0;
 
     // Level up notification
-    if (bLevel > g.prevBulletLevel && bLevel <= 5) {
+    if (bLevel > g.prevBulletLevel && bLevel <= 7) {
       g.prevBulletLevel = bLevel;
       setBulletLevel(bLevel);
       playLevelUp();
@@ -465,12 +468,12 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       g.player.x = Math.max(0, Math.min(w - g.player.w, g.player.x));
       g.player.y = Math.max(h * 0.2, Math.min(h - g.player.h - 10, g.player.y));
 
-      // Auto-fire
-      if (now - g.lastBullet > BULLET_INTERVAL) {
-        const cfg = getBulletConfig(bLevel);
+      // Auto-fire (interval decreases with level = machinegun at high levels)
+      const cfg = getBulletConfig(bLevel);
+      if (now - g.lastBullet > cfg.interval) {
         // Multiple bullets at higher levels
-        const bulletCount = bLevel >= 4 ? 3 : bLevel >= 2 ? 2 : 1;
-        const spread = bLevel >= 2 ? 12 : 0;
+        const bulletCount = bLevel >= 5 ? 4 : bLevel >= 3 ? 3 : bLevel >= 1 ? 2 : 1;
+        const spread = bLevel >= 1 ? 14 + bLevel * 2 : 0;
 
         for (let i = 0; i < bulletCount; i++) {
           const offsetX = bulletCount === 1 ? 0 : (i - (bulletCount - 1) / 2) * spread;
@@ -564,12 +567,13 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
             setScore(g.score);
             spawnParticles(obj.x, obj.y, hsl(45, 100, 70), 15);
             playStarCollect();
-          } else {
+           } else {
             g.lives--;
             setLives(g.lives);
-            spawnParticles(obj.x, obj.y, hsl(0, 85, 55), 25);
+            spawnParticles(obj.x, obj.y, hsl(0, 85, 55), 40);
             playBombHit();
-            g.shakeAmount = 12; // screen shake on hit!
+            g.shakeAmount = 18;
+            g.hitFlashTimer = 15; // red flash frames
             if (g.lives <= 0) g.gameplayEnded = true;
           }
           return false;
@@ -622,6 +626,21 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
 
     // Player
     if (g.lives > 0) drawShip(ctx, g.player.x, g.player.y, g.player.w, g.player.h, now, bLevel);
+
+    // Hit flash overlay (red vignette)
+    if (g.hitFlashTimer > 0) {
+      const flashAlpha = g.hitFlashTimer / 15 * 0.4;
+      const vignette = ctx.createRadialGradient(w / 2, h / 2, h * 0.3, w / 2, h / 2, h * 0.8);
+      vignette.addColorStop(0, hsl(0, 100, 50, 0));
+      vignette.addColorStop(1, hsl(0, 100, 30, flashAlpha));
+      ctx.fillStyle = vignette;
+      ctx.fillRect(0, 0, w, h);
+      // Flash border
+      ctx.strokeStyle = hsl(0, 100, 50, flashAlpha * 1.5);
+      ctx.lineWidth = 6;
+      ctx.strokeRect(0, 0, w, h);
+      g.hitFlashTimer--;
+    }
 
     // HUD
     drawHUD(ctx, w, g.score, g.lives, elapsed, bLevel);
@@ -763,13 +782,18 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
         </div>
       )}
 
-      {/* Waiting */}
+      {/* Waiting - big score */}
       {phase === 'waiting' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-background/60 backdrop-blur-sm">
-          <p className="font-game text-3xl text-primary text-glow mb-4">GAME OVER</p>
-          <p className="font-game text-5xl text-accent text-glow-accent mb-6">★ {score}</p>
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-background/70 backdrop-blur-md">
+          <p className="font-game text-4xl md:text-5xl text-destructive mb-6 animate-pulse" style={{ textShadow: '0 0 30px hsl(0 100% 50% / 0.6)' }}>
+            GAME OVER
+          </p>
+          <p className="font-game text-7xl md:text-9xl text-accent mb-4" style={{ textShadow: '0 0 40px hsl(45 100% 50% / 0.5), 0 0 80px hsl(45 100% 50% / 0.3)' }}>
+            {score}
+          </p>
+          <p className="font-game text-xl text-accent/70 mb-6">POINTS</p>
           {bulletLevel > 0 && (
-            <p className="font-game-body text-sm text-muted-foreground mb-2">Max Weapon: LV.{bulletLevel + 1}</p>
+            <p className="font-game text-lg text-primary/80 mb-4">⚡ MAX WEAPON: LV.{bulletLevel + 1}</p>
           )}
           <p className="font-game-body text-lg text-muted-foreground animate-pulse">
             Waiting for other players...
