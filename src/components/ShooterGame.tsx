@@ -8,7 +8,7 @@ import {
 const GAME_DURATION = 30_000;
 const BULLET_INTERVAL = 220;
 const PLAYER_SPEED = 6;
-const MAX_LIVES = 3;
+const MAX_LIVES = 2;
 const STAR_POINTS = 10;
 
 // ── Types ───────────────────────────────────────────
@@ -500,30 +500,26 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
         g.lastStar = now;
       }
 
-      // Spawn bombs — moderate rate, varied trajectories
-      const bombInterval = Math.max(180, 450 - elapsed * 0.005);
+      // Spawn bombs — 4x rate, varied trajectories, progressive speed
+      const bombInterval = Math.max(40, 120 - elapsed * 0.003);
       if (now - g.lastBomb > bombInterval) {
         const bx = rand(20, w - 20);
         const pattern = Math.random();
         let vx = 0, sineAmp = 0, sineFreq = 0;
         if (pattern < 0.3) {
-          // Diagonal movement
           vx = rand(-2.5, 2.5);
         } else if (pattern < 0.6) {
-          // Sine wave movement
           sineAmp = rand(30, 80);
           sineFreq = rand(0.02, 0.06);
         } else if (pattern < 0.8) {
-          // Fast diagonal
           vx = rand(-1.5, 1.5);
           sineAmp = rand(15, 40);
           sineFreq = rand(0.03, 0.05);
         }
-        // else: straight down (20%)
         g.objects.push({
           x: bx, y: -20, type: 'bomb',
           size: rand(12, 18),
-          speed: rand(2, 4) * difficultyMult,
+          speed: rand(2, 4.5) * difficultyMult,
           rotation: 0,
           vx, sineAmp, sineFreq, originX: bx, age: 0,
         });
@@ -722,6 +718,13 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     return () => clearTimeout(t);
   }, [phase, onGameEnd]);
 
+  // ── Auto-start: show instructions then auto-countdown ──
+  useEffect(() => {
+    if (phase !== 'instructions') return;
+    const t = setTimeout(() => { setPhase('countdown'); setCountdown(3); }, 3000);
+    return () => clearTimeout(t);
+  }, [phase]);
+
   const startGame = () => { setPhase('countdown'); setCountdown(3); };
 
   return (
@@ -739,7 +742,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
             <p>🚀 Move with <span className="text-primary">Arrow Keys / WASD</span> or <span className="text-primary">Touch</span></p>
             <p>🔫 Auto-fire — bullets <span className="text-secondary">evolve every 7s!</span></p>
             <p>⭐ Collect <span className="text-accent">Stars</span> for points</p>
-            <p>💣 Avoid <span className="text-destructive">Bombs</span> — 3 lives!</p>
+            <p>💣 Avoid <span className="text-destructive">Bombs</span> — 2 lives!</p>
             <p>🎯 Shoot bombs to destroy them</p>
             <p className="text-muted-foreground text-sm">Difficulty increases over time</p>
           </div>
