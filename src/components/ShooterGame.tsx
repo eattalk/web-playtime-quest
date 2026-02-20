@@ -14,7 +14,7 @@ const STAR_POINTS = 10;
 // ── Types ───────────────────────────────────────────
 interface Vec2 { x: number; y: number; }
 interface Bullet extends Vec2 { w: number; h: number; level: number; hue: number; trail: Vec2[]; }
-interface FallingObj extends Vec2 { type: 'star' | 'bomb'; size: number; speed: number; rotation: number; }
+interface FallingObj extends Vec2 { type: 'star' | 'bomb'; size: number; speed: number; rotation: number; vx: number; sineAmp: number; sineFreq: number; originX: number; age: number; }
 interface Particle extends Vec2 { vx: number; vy: number; life: number; maxLife: number; color: string; size: number; }
 interface BgStar extends Vec2 { size: number; brightness: number; speed: number; }
 
@@ -76,6 +76,8 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     H: 0,
     prevBulletLevel: 0,
     shipHue: 0,
+    shakeAmount: 0,
+    shakeDecay: 0.9,
   });
 
   const initBgStars = useCallback((w: number, h: number) => {
@@ -334,7 +336,6 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
 
     ctx.font = '700 22px Orbitron, monospace';
     ctx.textAlign = 'center';
-    // Timer bg pill
     const tw = ctx.measureText(timeStr).width + 30;
     ctx.fillStyle = hsl(230, 30, 6, 0.5);
     ctx.beginPath();
@@ -349,10 +350,50 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     ctx.fillStyle = hsl(45, 100, 70);
     ctx.fillText(`★ ${score}`, pad, pad + 18);
 
-    // Lives
+    // Lives - BIG hearts on the right
     ctx.textAlign = 'right';
-    ctx.font = '20px sans-serif';
-    ctx.fillText('❤'.repeat(lives) + '🖤'.repeat(MAX_LIVES - lives), w - pad, pad + 18);
+    const heartSize = 28;
+    const heartPad = 8;
+    const heartsStartX = w - pad;
+    const heartsY = pad + 16;
+    for (let i = 0; i < MAX_LIVES; i++) {
+      const hx = heartsStartX - (MAX_LIVES - 1 - i) * (heartSize + heartPad);
+      const alive = i < lives;
+      // Heart glow
+      if (alive) {
+        const glow = ctx.createRadialGradient(hx, heartsY, 0, hx, heartsY, heartSize);
+        glow.addColorStop(0, hsl(0, 100, 60, 0.4));
+        glow.addColorStop(1, hsl(0, 100, 60, 0));
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(hx, heartsY, heartSize, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Heart shape
+      ctx.save();
+      ctx.translate(hx, heartsY);
+      const hs = heartSize * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(0, hs * 0.4);
+      ctx.bezierCurveTo(-hs, -hs * 0.2, -hs, -hs * 0.9, 0, -hs * 0.5);
+      ctx.bezierCurveTo(hs, -hs * 0.9, hs, -hs * 0.2, 0, hs * 0.4);
+      ctx.closePath();
+      if (alive) {
+        const hGrad = ctx.createLinearGradient(0, -hs, 0, hs);
+        hGrad.addColorStop(0, hsl(350, 100, 65));
+        hGrad.addColorStop(1, hsl(0, 100, 45));
+        ctx.fillStyle = hGrad;
+      } else {
+        ctx.fillStyle = hsl(0, 0, 25, 0.6);
+      }
+      ctx.fill();
+      if (alive) {
+        ctx.strokeStyle = hsl(0, 100, 80, 0.6);
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
 
     // Bullet level indicator
     if (bLevel > 0) {
@@ -369,8 +410,17 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     const g = gs.current;
     const { W: w, H: h } = g;
 
-    // Clear
-    ctx.fillStyle = hsl(230, 30, 4);
+    // Screen shake
+    ctx.save();
+    if (g.shakeAmount > 0.5) {
+      const sx = (Math.random() - 0.5) * g.shakeAmount * 2;
+      const sy = (Math.random() - 0.5) * g.shakeAmount * 2;
+      ctx.translate(sx, sy);
+      g.shakeAmount *= g.shakeDecay;
+    }
+
+    // Clear - brighter background
+    ctx.fillStyle = hsl(225, 25, 12);
     ctx.fillRect(0, 0, w, h);
     drawBgStars(ctx, w, h, timestamp);
 
@@ -437,30 +487,46 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
         playShoot(bLevel);
       }
 
-      // Spawn stars (high rate, progressive speed)
-      const starInterval = Math.max(80, 180 - elapsed * 0.004);
+      // Spawn stars
+      const starInterval = Math.max(120, 250 - elapsed * 0.003);
       if (now - g.lastStar > starInterval) {
         g.objects.push({
           x: rand(20, w - 20), y: -20, type: 'star',
           size: rand(10, 16),
-          speed: rand(2.5, 5) * difficultyMult,
+          speed: rand(2, 4) * difficultyMult,
           rotation: rand(0, Math.PI * 2),
+          vx: 0, sineAmp: 0, sineFreq: 0, originX: 0, age: 0,
         });
         g.lastStar = now;
       }
 
-      // Spawn bombs (10x rate, progressive speed)
-      const bombInterval = Math.max(30, 60 - elapsed * 0.001);
+      // Spawn bombs — moderate rate, varied trajectories
+      const bombInterval = Math.max(180, 450 - elapsed * 0.005);
       if (now - g.lastBomb > bombInterval) {
-        const bombCount = 1 + Math.floor(elapsed / 5000); // more bombs over time
-        for (let bi = 0; bi < Math.min(bombCount, 4); bi++) {
-          g.objects.push({
-            x: rand(20, w - 20), y: -20 - bi * 15, type: 'bomb',
-            size: rand(12, 18),
-            speed: rand(2, 5) * difficultyMult,
-            rotation: 0,
-          });
+        const bx = rand(20, w - 20);
+        const pattern = Math.random();
+        let vx = 0, sineAmp = 0, sineFreq = 0;
+        if (pattern < 0.3) {
+          // Diagonal movement
+          vx = rand(-2.5, 2.5);
+        } else if (pattern < 0.6) {
+          // Sine wave movement
+          sineAmp = rand(30, 80);
+          sineFreq = rand(0.02, 0.06);
+        } else if (pattern < 0.8) {
+          // Fast diagonal
+          vx = rand(-1.5, 1.5);
+          sineAmp = rand(15, 40);
+          sineFreq = rand(0.03, 0.05);
         }
+        // else: straight down (20%)
+        g.objects.push({
+          x: bx, y: -20, type: 'bomb',
+          size: rand(12, 18),
+          speed: rand(2, 4) * difficultyMult,
+          rotation: 0,
+          vx, sineAmp, sineFreq, originX: bx, age: 0,
+        });
         g.lastBomb = now;
       }
     }
@@ -481,7 +547,14 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     const pr = g.player.w * 0.38;
 
     g.objects = g.objects.filter(obj => {
+      obj.age++;
       obj.y += obj.speed;
+      // Varied horizontal movement for bombs
+      if (obj.vx) obj.x += obj.vx;
+      if (obj.sineAmp) obj.x = obj.originX + Math.sin(obj.age * obj.sineFreq) * obj.sineAmp;
+      // Keep in bounds
+      if (obj.x < 10) { obj.x = 10; obj.vx = Math.abs(obj.vx || 0); }
+      if (obj.x > w - 10) { obj.x = w - 10; obj.vx = -(Math.abs(obj.vx || 0)); }
       if (obj.y > h + 30) return false;
 
       if (gameplayActive) {
@@ -500,6 +573,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
             setLives(g.lives);
             spawnParticles(obj.x, obj.y, hsl(0, 85, 55), 25);
             playBombHit();
+            g.shakeAmount = 12; // screen shake on hit!
             if (g.lives <= 0) g.gameplayEnded = true;
           }
           return false;
@@ -569,6 +643,8 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       g.phase = 'done';
       onGameEnd(g.score);
     }
+
+    ctx.restore(); // end screen shake
   }, [drawBgStars, drawBullet, drawBomb, drawStar, drawShip, drawHUD, spawnParticles, onGameEnd]);
 
   // ── Canvas & input setup ──────────────────────────
