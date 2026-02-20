@@ -648,9 +648,16 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     // Check transitions
     if (!g.gameplayEnded && (elapsed >= GAME_DURATION || g.lives <= 0)) {
       g.gameplayEnded = true;
+      playGameOver();
+      // Dead = immediate end, time up = wait for maxTime
+      if (g.lives <= 0) {
+        setPhase('done');
+        g.phase = 'done';
+        onGameEnd(g.score);
+        return;
+      }
       setPhase('waiting');
       g.phase = 'waiting';
-      playGameOver();
     }
 
     if (elapsed >= g.maxTimeMs) {
