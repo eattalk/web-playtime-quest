@@ -770,6 +770,9 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     g.shakeAmount = 0;
     g.hitFlashTimer = 0;
     g.phase = 'countdown';
+    // 정중앙에서 시작
+    g.player.x = g.W / 2 - g.player.w / 2;
+    g.player.y = g.H / 2 - g.player.h / 2;
     setScore(0);
     setLives(MAX_LIVES);
     setBulletLevel(0);
