@@ -848,9 +848,8 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     g.startTime = 0; // will be lazily set in game loop
   }, [phase]);
 
-  const startGame = () => {
+  const startGame = useCallback(() => {
     const g = gs.current;
-    // Reset all game state for a fresh run
     g.score = 0;
     g.lives = MAX_LIVES;
     g.objects = [];
@@ -866,12 +865,13 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     g.startTime = 0;
     g.shakeAmount = 0;
     g.hitFlashTimer = 0;
+    g.phase = 'countdown';
     setScore(0);
     setLives(MAX_LIVES);
     setBulletLevel(0);
     setCountdown(3);
     setPhase('countdown');
-  };
+  }, []);
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-game-bg select-none">
