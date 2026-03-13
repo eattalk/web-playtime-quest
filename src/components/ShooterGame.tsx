@@ -13,16 +13,25 @@ const STAR_POINTS     = 10;
 // ── Types ────────────────────────────────────────────
 interface Vec2 { x: number; y: number; }
 interface Bullet extends Vec2 { w: number; h: number; level: number; hue: number; trail: Vec2[]; }
+type BombPattern = 'straight' | 'sine' | 'zigzag' | 'diagonal' | 'boomerang' | 'spiral' | 'homing' | 'burst';
 interface FallingObj extends Vec2 {
   type: 'star' | 'bomb';
   size: number;
   speed: number;   // px/s
   rotation: number;
   vx: number;      // px/s
+  vy: number;      // px/s (for diagonal/boomerang)
   sineAmp: number;
   sineFreq: number; // cycles/s
   originX: number;
+  originY: number;
   age: number;      // seconds
+  pattern: BombPattern;
+  accelX: number;   // px/s² (boomerang)
+  accelY: number;
+  spiralR: number;  // spiral radius
+  spiralSpeed: number; // rad/s
+  spiralAngle: number;
 }
 interface Particle extends Vec2 { vx: number; vy: number; life: number; maxLife: number; color: string; size: number; }
 interface BgStar extends Vec2 { size: number; brightness: number; speed: number; }  // speed px/s
@@ -498,38 +507,88 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       if (timeSinceLastStar > starInterval) {
         g.objects.push({
           x: rand(20, w - 20), y: -20, type: 'star',
-          size:  rand(10, 16),
-          speed: rand(120, 240) * difficultyMult,  // px/s
+          size: rand(10, 16),
+          speed: rand(120, 240) * difficultyMult,
           rotation: rand(0, Math.PI * 2),
-          vx: 0, sineAmp: 0, sineFreq: 0, originX: 0, age: 0,
+          vx: 0, vy: 0, sineAmp: 0, sineFreq: 0,
+          originX: 0, originY: 0, age: 0, pattern: 'straight',
+          accelX: 0, accelY: 0, spiralR: 0, spiralSpeed: 0, spiralAngle: 0,
         });
         g.lastStar = elapsedSec;
       }
 
-      // Spawn bombs — intervals in seconds
-      const bombInterval = Math.max(0.025, 0.12 - elapsedMs * 0.000003);
+      // Spawn bombs — intervals in seconds (more frequent, harder)
+      const bombInterval = Math.max(0.018, 0.10 - elapsedMs * 0.000003);
       const timeSinceLastBomb = elapsedSec - g.lastBomb;
       if (timeSinceLastBomb > bombInterval) {
-        const bx = rand(20, w - 20);
-        const pattern = Math.random();
-        let vx = 0, sineAmp = 0, sineFreq = 0;
-        if (pattern < 0.3) {
-          vx = rand(-150, 150);          // px/s
-        } else if (pattern < 0.6) {
-          sineAmp  = rand(30, 80);
-          sineFreq = rand(1.2, 3.6);    // cycles/s
-        } else if (pattern < 0.8) {
-          vx = rand(-90, 90);
-          sineAmp  = rand(15, 40);
-          sineFreq = rand(1.8, 3.0);
+        // How many bombs per burst (scales with difficulty)
+        const burstCount = elapsedMs > 20000 ? rand(1,3) < 2 ? 2 : 1 :
+                           elapsedMs > 10000 ? (Math.random() < 0.3 ? 2 : 1) : 1;
+        for (let b = 0; b < burstCount; b++) {
+          const bx = rand(20, w - 20);
+          const by = b === 0 ? -20 : rand(-60, -20);
+          const spd = rand(140, 310) * difficultyMult;
+
+          // Pick pattern weighted by difficulty
+          const roll = Math.random();
+          const diffRatio = elapsedMs / GAME_DURATION; // 0→1
+          let pattern: BombPattern;
+          if (roll < 0.15)                          pattern = 'straight';
+          else if (roll < 0.30)                     pattern = 'sine';
+          else if (roll < 0.44)                     pattern = 'zigzag';
+          else if (roll < 0.56)                     pattern = 'diagonal';
+          else if (roll < 0.67 && diffRatio > 0.2)  pattern = 'boomerang';
+          else if (roll < 0.78 && diffRatio > 0.35) pattern = 'spiral';
+          else if (roll < 0.89 && diffRatio > 0.5)  pattern = 'homing';
+          else                                       pattern = 'sine';
+
+          let vx = 0, vy = 0, sineAmp = 0, sineFreq = 0;
+          let accelX = 0, accelY = 0;
+          let spiralR = 0, spiralSpeed = 0, spiralAngle = 0;
+
+          switch (pattern) {
+            case 'straight':
+              break;
+            case 'sine':
+              sineAmp  = rand(40, 110);
+              sineFreq = rand(1.0, 3.2);
+              break;
+            case 'zigzag':
+              vx = (Math.random() < 0.5 ? 1 : -1) * rand(180, 320);
+              sineAmp  = rand(20, 50);
+              sineFreq = rand(2.5, 5.0);
+              break;
+            case 'diagonal':
+              vx = rand(-240, 240);
+              vy = 0; // speed already handles downward
+              break;
+            case 'boomerang':
+              vx = rand(-280, 280);
+              accelX = -vx * rand(1.2, 2.2); // decelerates and reverses
+              break;
+            case 'spiral':
+              spiralR = rand(50, 130);
+              spiralSpeed = rand(3.0, 6.0) * (Math.random() < 0.5 ? 1 : -1);
+              spiralAngle = rand(0, Math.PI * 2);
+              break;
+            case 'homing':
+              // Mild tracking — handled in update
+              vx = (g.player.x + g.player.w / 2 - bx) * rand(0.4, 0.9);
+              break;
+          }
+
+          g.objects.push({
+            x: bx, y: by, type: 'bomb',
+            size: rand(12, 20),
+            speed: spd,
+            rotation: 0,
+            vx, vy, sineAmp, sineFreq,
+            originX: bx, originY: by,
+            age: 0, pattern,
+            accelX, accelY,
+            spiralR, spiralSpeed, spiralAngle,
+          });
         }
-        g.objects.push({
-          x: bx, y: -20, type: 'bomb',
-          size:  rand(12, 18),
-          speed: rand(120, 270) * difficultyMult,  // px/s
-          rotation: 0,
-          vx, sineAmp, sineFreq, originX: bx, age: 0,
-        });
         g.lastBomb = elapsedSec;
       }
     }
@@ -550,11 +609,63 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
 
     g.objects = g.objects.filter(obj => {
       obj.age += dt;
-      obj.y   += obj.speed * dt;
-      if (obj.vx)      obj.x  = obj.x + obj.vx * dt;
-      if (obj.sineAmp) obj.x  = obj.originX + Math.sin(obj.age * obj.sineFreq * Math.PI * 2) * obj.sineAmp;
-      if (obj.x < 10)      { obj.x = 10;     obj.vx =  Math.abs(obj.vx || 0); }
-      if (obj.x > w - 10)  { obj.x = w - 10; obj.vx = -Math.abs(obj.vx || 0); }
+
+      // Pattern-specific movement
+      switch (obj.pattern) {
+        case 'straight':
+          obj.y += obj.speed * dt;
+          break;
+        case 'sine':
+          obj.y += obj.speed * dt;
+          obj.x = obj.originX + Math.sin(obj.age * obj.sineFreq * Math.PI * 2) * obj.sineAmp;
+          break;
+        case 'zigzag':
+          obj.y += obj.speed * dt;
+          obj.x += obj.vx * dt;
+          obj.x = obj.originX + Math.sin(obj.age * obj.sineFreq * Math.PI * 2) * obj.sineAmp + (obj.vx > 0 ? obj.age * 30 : -obj.age * 30);
+          break;
+        case 'diagonal':
+          obj.y += obj.speed * dt;
+          obj.x += obj.vx * dt;
+          break;
+        case 'boomerang':
+          obj.vx += obj.accelX * dt;
+          obj.x  += obj.vx * dt;
+          obj.y  += obj.speed * dt;
+          break;
+        case 'spiral':
+          obj.spiralAngle += obj.spiralSpeed * dt;
+          obj.x = obj.originX + Math.cos(obj.spiralAngle) * obj.spiralR;
+          obj.y = obj.originY + obj.age * obj.speed;
+          break;
+        case 'homing': {
+          // Gradually steer toward player
+          const tx = pcx - obj.x;
+          const ty = pcy - obj.y;
+          const dist = Math.sqrt(tx * tx + ty * ty) || 1;
+          const homingStr = 120 * dt;
+          obj.vx += (tx / dist) * homingStr;
+          obj.vy += (ty / dist) * homingStr;
+          // clamp speed
+          const vspd = Math.sqrt(obj.vx * obj.vx + obj.vy * obj.vy) || 1;
+          if (vspd > obj.speed) { obj.vx = (obj.vx / vspd) * obj.speed; obj.vy = (obj.vy / vspd) * obj.speed; }
+          obj.x += obj.vx * dt;
+          obj.y += obj.vy * dt;
+          break;
+        }
+        default:
+          obj.y += obj.speed * dt;
+          obj.x += obj.vx * dt;
+      }
+
+      // Wall bounce for patterns with horizontal velocity
+      if (obj.pattern === 'diagonal' || obj.pattern === 'boomerang') {
+        if (obj.x < 10)     { obj.x = 10;     obj.vx =  Math.abs(obj.vx); }
+        if (obj.x > w - 10) { obj.x = w - 10; obj.vx = -Math.abs(obj.vx); }
+      }
+      if (obj.x < 0)  obj.x = 0;
+      if (obj.x > w)  obj.x = w;
+
       if (obj.y > h + 30) return false;
 
       if (gameplayActive) {
@@ -572,7 +683,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
             spawnParticles(obj.x, obj.y, hsl(0, 85, 55), 40);
             playBombHit();
             g.shakeAmount    = 18;
-            g.hitFlashTimer  = 0.25; // seconds
+            g.hitFlashTimer  = 0.25;
             if (g.lives <= 0) g.gameplayEnded = true;
           }
           return false;
