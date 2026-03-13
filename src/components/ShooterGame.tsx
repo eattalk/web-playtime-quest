@@ -588,25 +588,18 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       ctx.fillText('TAP ANYWHERE TO PLAY',0, Math.max(36, Math.min(5*h/100, 56)));
       ctx.restore();
 
-      // How-to pills
-      const pills = ['🚀 Touch / Arrow Keys to move','⭐ Collect stars','💣 Dodge & shoot bombs'];
-      pills.forEach((txt,i)=>{
-        const py = h*0.72 + i * Math.max(30, Math.min(4*h/100, 46));
-        ctx.font=`500 clamp(11px,2vw,18px) Orbitron,monospace`;
-        ctx.textAlign='center';
-        const tw = ctx.measureText(txt).width;
-        ctx.fillStyle=hsl(225,30,10,0.7);
-        ctx.beginPath(); ctx.roundRect(w/2-tw/2-18,py-18,tw+36,30,15); ctx.fill();
-        ctx.fillStyle=hsl(190,80,80,0.9);
-        ctx.fillText(txt, w/2, py);
-      });
-
-      // Progress bar at bottom
-      const prog = Math.min(g.demoElapsed/DEMO_DUR,1);
-      ctx.fillStyle=hsl(225,30,15,0.6);
-      ctx.beginPath(); ctx.roundRect(w/2-100,h-28,200,8,4); ctx.fill();
-      ctx.fillStyle=hsl(190,100,60,0.8);
-      ctx.beginPath(); ctx.roundRect(w/2-100,h-28,200*prog,8,4); ctx.fill();
+      // Tap to start — pulsing
+      const tapAlpha = 0.6 + Math.sin(timestamp * 0.004) * 0.4;
+      ctx.font = `700 clamp(14px,3vw,26px) Orbitron,monospace`;
+      ctx.textAlign = 'center';
+      const tapTxt = '👆 TAP TO START';
+      const tapTw = ctx.measureText(tapTxt).width;
+      ctx.fillStyle = hsl(225,30,10,0.65);
+      ctx.beginPath(); ctx.roundRect(w/2-tapTw/2-24, h*0.88-22, tapTw+48, 38, 19); ctx.fill();
+      ctx.fillStyle = hsl(190,100,80,tapAlpha);
+      ctx.shadowColor = hsl(190,100,60); ctx.shadowBlur = 18;
+      ctx.fillText(tapTxt, w/2, h*0.88);
+      ctx.shadowBlur = 0;
 
       ctx.restore();
       return;
