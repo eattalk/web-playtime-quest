@@ -90,6 +90,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     shakeAmount: 0,
     hitFlashTimer: 0,    // seconds
     lastFrameTime: 0,    // performance.now() of last RAF
+    evolveFlash: { timer: 0, label: '', hue: 190 }, // evolution flash
   });
 
   const initBgStars = useCallback((w: number, h: number) => {
