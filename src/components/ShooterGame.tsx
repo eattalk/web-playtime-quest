@@ -79,7 +79,6 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
   const [lives, setLives] = useState(MAX_LIVES);
   const [elapsed, setElapsed] = useState(0);
   const [bulletLevel, setBulletLevel] = useState(0);
-  const [demoTimeLeft, setDemoTimeLeft] = useState(8);
 
   const gs = useRef({
     player: { x: 0, y: 0, w: 44, h: 44 },
