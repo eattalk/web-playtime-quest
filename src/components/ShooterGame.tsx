@@ -438,10 +438,12 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       g.prevBulletLevel = bLevel;
       setBulletLevel(bLevel);
       playLevelUp();
+      const cfg = getBulletConfig(bLevel);
       for (let i = 0; i < 30; i++) {
-        const cfg = getBulletConfig(bLevel);
         spawnParticles(rand(0, w), rand(0, h), hsl(cfg.color, 100, 70), 3);
       }
+      const labels = ['EAGLE EVOLVED!', 'RAPID FIRE!', 'PLASMA MODE!', 'NOVA BURST!', 'SOLAR FLARE!', 'INFERNO!', 'MACHINEGUN!', 'GOD MODE!!!'];
+      g.evolveFlash = { timer: 1.6, label: labels[bLevel] ?? 'EVOLVED!', hue: cfg.color };
     }
 
     setElapsed(elapsedMs);
