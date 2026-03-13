@@ -269,16 +269,16 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     const s = obj.size;
     const hpRatio = obj.maxHp > 1 ? obj.hp / obj.maxHp : 1;
     const pulse = 1 + Math.sin(t * 0.012) * 0.12;
-    // glow color shifts red→orange as HP decreases
-    const glowHue = hpRatio < 0.4 ? 20 : hpRatio < 0.7 ? 10 : 0;
     const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, s * 2.2 * pulse);
-    glow.addColorStop(0, hsl(glowHue, 85, 55, 0.35 + (1 - hpRatio) * 0.4));
-    glow.addColorStop(1, hsl(glowHue, 85, 55, 0));
+    glow.addColorStop(0, hsl(0, 85, 55, 0.35));
+    glow.addColorStop(1, hsl(0, 85, 55, 0));
     ctx.fillStyle = glow;
     ctx.beginPath();
     ctx.arc(0, 0, s * 2.2 * pulse, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = hsl(0, 10, 12);
+    // Body — flashes white when hit (hpRatio < 1 means just-hit)
+    const bodyLight = hpRatio < 1 && hpRatio > 0 ? 60 + (1 - hpRatio) * 30 : 12;
+    ctx.fillStyle = hsl(0, 10, bodyLight);
     ctx.beginPath();
     ctx.arc(0, 0, s, 0, Math.PI * 2);
     ctx.fill();
@@ -300,33 +300,6 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     ctx.beginPath();
     ctx.arc(0, -s - 10, sparkSize, 0, Math.PI * 2);
     ctx.fill();
-
-    // HP bar (only for multi-hit bombs)
-    if (obj.maxHp > 1) {
-      const barW = s * 2.4;
-      const barH = 5;
-      const barY = s + 8;
-      // background
-      ctx.fillStyle = hsl(0, 0, 20, 0.7);
-      ctx.beginPath();
-      ctx.roundRect(-barW / 2, barY, barW, barH, 3);
-      ctx.fill();
-      // fill — green → yellow → red
-      const barColor = hpRatio > 0.6 ? hsl(120, 90, 50) : hpRatio > 0.3 ? hsl(45, 100, 55) : hsl(0, 100, 55);
-      ctx.fillStyle = barColor;
-      ctx.beginPath();
-      ctx.roundRect(-barW / 2, barY, barW * hpRatio, barH, 3);
-      ctx.fill();
-      // HP dots
-      for (let i = 0; i < obj.maxHp; i++) {
-        const dotX = -barW / 2 + (barW / obj.maxHp) * (i + 0.5);
-        ctx.fillStyle = i < obj.hp ? hsl(0, 0, 90, 0.6) : hsl(0, 0, 20, 0.4);
-        ctx.beginPath();
-        ctx.arc(dotX, barY + barH / 2, 2, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
     ctx.restore();
   }, []);
 
@@ -728,8 +701,8 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
                            elapsedMs > 10000 ? (Math.random() < 0.45 ? 2 : 1) : 1;
 
         for (let b = 0; b < burstCount; b++) {
-          // 65% chance to aim directly at player — punishes standing still
-          const targeted = Math.random() < 0.65;
+          // 45% chance to aim near player — some pressure but still escapable
+          const targeted = Math.random() < 0.45;
           const bx = targeted
             ? g.player.x + g.player.w / 2 + rand(-30, 30)
             : rand(20, w - 20);
@@ -847,14 +820,13 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
           obj.y = obj.originY + obj.age * obj.speed;
           break;
         case 'homing': {
-          // Aggressively steer toward player
+          // Gentle steer toward player — escapable with movement
           const tx = pcx - obj.x;
           const ty = pcy - obj.y;
           const dist = Math.sqrt(tx * tx + ty * ty) || 1;
-          const homingStr = 320 * dt;
+          const homingStr = 100 * dt;
           obj.vx += (tx / dist) * homingStr;
           obj.vy += (ty / dist) * homingStr;
-          // clamp speed
           const vspd = Math.sqrt(obj.vx * obj.vx + obj.vy * obj.vy) || 1;
           if (vspd > obj.speed) { obj.vx = (obj.vx / vspd) * obj.speed; obj.vy = (obj.vy / vspd) * obj.speed; }
           obj.x += obj.vx * dt;
