@@ -90,6 +90,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     shakeAmount: 0,
     hitFlashTimer: 0,    // seconds
     lastFrameTime: 0,    // performance.now() of last RAF
+    evolveFlash: { timer: 0, label: '', hue: 190 }, // evolution flash
   });
 
   const initBgStars = useCallback((w: number, h: number) => {
@@ -437,10 +438,12 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       g.prevBulletLevel = bLevel;
       setBulletLevel(bLevel);
       playLevelUp();
+      const cfg = getBulletConfig(bLevel);
       for (let i = 0; i < 30; i++) {
-        const cfg = getBulletConfig(bLevel);
         spawnParticles(rand(0, w), rand(0, h), hsl(cfg.color, 100, 70), 3);
       }
+      const labels = ['EAGLE EVOLVED!', 'RAPID FIRE!', 'PLASMA MODE!', 'NOVA BURST!', 'SOLAR FLARE!', 'INFERNO!', 'MACHINEGUN!', 'GOD MODE!!!'];
+      g.evolveFlash = { timer: 1.6, label: labels[bLevel] ?? 'EVOLVED!', hue: cfg.color };
     }
 
     setElapsed(elapsedMs);
@@ -636,6 +639,50 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     }
 
     drawHUD(ctx, w, g.score, g.lives, elapsedMs, bLevel);
+
+    // ── Evolve flash ──
+    if (g.evolveFlash.timer > 0) {
+      const ef = g.evolveFlash;
+      const progress = ef.timer / 1.6; // 1 → 0
+      // scale: zoom in fast then hold
+      const scale = progress > 0.75
+        ? 0.5 + (1 - progress) / 0.25 * 0.65   // 0.5 → 1.15 (zoom-in phase)
+        : 1.15;                                   // hold
+      const alpha = progress > 0.2 ? 1 : progress / 0.2; // fade out at end
+      const cy = h * 0.42;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(w / 2, cy);
+      ctx.scale(scale, scale);
+
+      // Glow backdrop
+      const grd = ctx.createRadialGradient(0, 0, 0, 0, 0, 220);
+      grd.addColorStop(0, hsl(ef.hue, 100, 50, 0.28 * alpha));
+      grd.addColorStop(1, hsl(ef.hue, 100, 50, 0));
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.arc(0, 0, 220, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Sub-label: "LEVEL UP"
+      ctx.font = '700 22px Orbitron, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = hsl(ef.hue, 100, 85, alpha);
+      ctx.letterSpacing = '6px';
+      ctx.fillText('LEVEL UP', 0, -36);
+
+      // Main label
+      ctx.font = '900 52px Orbitron, monospace';
+      ctx.fillStyle = hsl(ef.hue, 100, 95, alpha);
+      ctx.shadowColor = hsl(ef.hue, 100, 60);
+      ctx.shadowBlur = 30;
+      ctx.fillText(ef.label, 0, 18);
+      ctx.shadowBlur = 0;
+
+      ctx.restore();
+      ef.timer = Math.max(0, ef.timer - dt);
+    }
 
     // ── Phase transitions ──
     if (!g.gameplayEnded && (elapsedMs >= GAME_DURATION || g.lives <= 0)) {
