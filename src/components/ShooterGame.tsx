@@ -610,6 +610,8 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     }
 
     if (g.phase !== 'playing') { ctx.restore(); return; }
+    // Once gameplay ended, freeze immediately — no more updates or level-ups
+    if (g.gameplayEnded) { ctx.restore(); return; }
 
     const elapsedMs = timestamp - g.startTime;
     const elapsedSec = elapsedMs / 1000;
@@ -864,7 +866,14 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
             playBombHit();
             g.shakeAmount    = 18;
             g.hitFlashTimer  = 0.25;
-            if (g.lives <= 0) g.gameplayEnded = true;
+            if (g.lives <= 0) {
+              g.gameplayEnded = true;
+              g.phase = 'done';
+              playGameOver();
+              setPhase('done');
+              const tiebreaker = Math.floor((performance.now() - g.startTime) % 1000);
+              onGameEnd(g.score * 1000 + tiebreaker);
+            }
           }
           return false;
         }
@@ -981,11 +990,10 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       ef.timer = Math.max(0, ef.timer - dt);
     }
 
-    // ── Phase transitions — die or time up → immediate result ──
-    if (!g.gameplayEnded && (g.lives <= 0 || elapsedMs >= GAME_DURATION || elapsedMs >= g.maxTimeMs)) {
+    // ── Phase transitions — timer only (death handled in collision above) ──
+    if (!g.gameplayEnded && (elapsedMs >= GAME_DURATION || elapsedMs >= g.maxTimeMs)) {
       g.gameplayEnded = true;
       g.phase = 'done';
-      // survival-time tiebreaker: add ms survived as fractional points
       const tiebreaker = Math.floor(elapsedMs % 1000);
       playGameOver();
       setPhase('done');
@@ -993,8 +1001,6 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       onGameEnd(g.score * 1000 + tiebreaker);
       return;
     }
-
-    ctx.restore();
   }, [drawBgStars, drawBullet, drawBomb, drawStar, drawShip, drawHUD, spawnParticles, onGameEnd]);
 
   // ── Stable ref for gameLoop to avoid RAF restarts ──
