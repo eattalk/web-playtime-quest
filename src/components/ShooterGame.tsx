@@ -457,19 +457,47 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
 
     // ── Player movement ──
     if (gameplayActive) {
-      const spd = PLAYER_SPEED * dt;
-      if (g.keys.has('ArrowLeft') || g.keys.has('a')) g.player.x -= spd;
-      if (g.keys.has('ArrowRight') || g.keys.has('d')) g.player.x += spd;
-      if (g.keys.has('ArrowUp') || g.keys.has('w')) g.player.y -= spd;
-      if (g.keys.has('ArrowDown') || g.keys.has('s')) g.player.y += spd;
+      if (g.phase === 'demo') {
+        // ── AI pilot: seek nearest star, repel from bombs ──
+        let aiX = g.player.x + g.player.w / 2;
+        let aiY = h * 0.65;
+        let minDist = Infinity;
+        g.objects.forEach(obj => {
+          if (obj.type === 'star') {
+            const d = Math.hypot(obj.x - (g.player.x + g.player.w / 2), obj.y - (g.player.y + g.player.h / 2));
+            if (d < minDist) { minDist = d; aiX = obj.x; aiY = obj.y; }
+          }
+        });
+        g.objects.forEach(obj => {
+          if (obj.type === 'bomb') {
+            const d = Math.hypot(obj.x - (g.player.x + g.player.w / 2), obj.y - (g.player.y + g.player.h / 2));
+            if (d < 160) {
+              const repel = (160 - d) / 160 * 4;
+              aiX += (g.player.x + g.player.w / 2 - obj.x) * repel;
+              aiY += (g.player.y + g.player.h / 2 - obj.y) * repel;
+            }
+          }
+        });
+        g.demoAiTarget = { x: aiX, y: aiY };
+        const adx = g.demoAiTarget.x - (g.player.x + g.player.w / 2);
+        const ady = g.demoAiTarget.y - (g.player.y + g.player.h / 2);
+        const lerpAI = 1 - Math.pow(0.84, dt * 60);
+        g.player.x += adx * lerpAI;
+        g.player.y += ady * lerpAI;
+      } else {
+        const spd = PLAYER_SPEED * dt;
+        if (g.keys.has('ArrowLeft') || g.keys.has('a')) g.player.x -= spd;
+        if (g.keys.has('ArrowRight') || g.keys.has('d')) g.player.x += spd;
+        if (g.keys.has('ArrowUp') || g.keys.has('w')) g.player.y -= spd;
+        if (g.keys.has('ArrowDown') || g.keys.has('s')) g.player.y += spd;
 
-      if (g.touchX !== null && g.touchY !== null) {
-        const dx = g.touchX - (g.player.x + g.player.w / 2);
-        const dy = g.touchY - (g.player.y + g.player.h / 2);
-        // dt-based lerp: factor = 1 - (1-0.12)^(dt*60)
-        const lerpFactor = 1 - Math.pow(0.88, dt * 60);
-        g.player.x += dx * lerpFactor;
-        g.player.y += dy * lerpFactor;
+        if (g.touchX !== null && g.touchY !== null) {
+          const dx = g.touchX - (g.player.x + g.player.w / 2);
+          const dy = g.touchY - (g.player.y + g.player.h / 2);
+          const lerpFactor = 1 - Math.pow(0.88, dt * 60);
+          g.player.x += dx * lerpFactor;
+          g.player.y += dy * lerpFactor;
+        }
       }
 
       g.player.x = Math.max(0, Math.min(w - g.player.w, g.player.x));
