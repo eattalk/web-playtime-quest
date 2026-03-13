@@ -841,37 +841,67 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     return () => clearTimeout(t);
   }, [phase, onGameEnd]);
 
-  // ── Auto-start: show instructions then auto-countdown ──
+  // ── Demo: init startTime on mount ──
   useEffect(() => {
-    if (phase !== 'instructions') return;
-    const t = setTimeout(() => { setPhase('countdown'); setCountdown(3); }, 3000);
-    return () => clearTimeout(t);
+    if (phase !== 'demo') return;
+    const g = gs.current;
+    g.startTime = 0; // will be lazily set in game loop
   }, [phase]);
 
-  const startGame = () => { setPhase('countdown'); setCountdown(3); };
+  const startGame = () => {
+    const g = gs.current;
+    // Reset all game state for a fresh run
+    g.score = 0;
+    g.lives = MAX_LIVES;
+    g.objects = [];
+    g.bullets = [];
+    g.particles = [];
+    g.gameplayEnded = false;
+    g.prevBulletLevel = 0;
+    g.evolveFlash = { timer: 0, label: '', hue: 190 };
+    g.lastBullet = 0;
+    g.lastStar = 0;
+    g.lastBomb = 0;
+    g.lastFrameTime = 0;
+    g.startTime = 0;
+    g.shakeAmount = 0;
+    g.hitFlashTimer = 0;
+    setScore(0);
+    setLives(MAX_LIVES);
+    setBulletLevel(0);
+    setCountdown(3);
+    setPhase('countdown');
+  };
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-game-bg select-none">
       <canvas ref={canvasRef} className="absolute inset-0" />
 
-      {/* Instructions */}
-      {phase === 'instructions' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-background/80 backdrop-blur-md px-6">
-          <h1 className="font-game text-3xl md:text-5xl text-primary text-glow mb-6 animate-pulse-glow">
-            SPACE SHOOTER
-          </h1>
-          <div className="max-w-md space-y-3 text-center font-game-body text-lg text-foreground/90">
-            <p className="text-accent text-glow-accent text-xl font-semibold">How to Play</p>
-            <p>🚀 Move with <span className="text-primary">Arrow Keys / WASD</span> or <span className="text-primary">Touch</span></p>
-            <p>🔫 Auto-fire — bullets <span className="text-secondary">evolve every 4s!</span></p>
-            <p>⭐ Collect <span className="text-accent">Stars</span> for points</p>
-            <p>💣 Avoid <span className="text-destructive">Bombs</span> — 2 lives!</p>
-            <p>🎯 Shoot bombs to destroy them</p>
-            <p className="text-muted-foreground text-sm">Difficulty increases over time</p>
+      {/* Demo overlay */}
+      {phase === 'demo' && (
+        <div
+          className="absolute inset-0 z-10 flex flex-col items-center justify-end pb-16 cursor-pointer"
+          onClick={startGame}
+        >
+          {/* DEMO badge top-left */}
+          <div className="absolute top-4 left-4 font-game text-xs tracking-widest px-3 py-1 rounded border border-primary/40 text-primary/60 bg-background/30">
+            DEMO
           </div>
-          <button onClick={startGame} className="mt-8 font-game text-lg px-8 py-3 rounded-lg bg-primary text-primary-foreground box-glow hover:brightness-110 transition-all animate-pulse-glow">
-            START GAME
-          </button>
+
+          {/* Bottom CTA */}
+          <div className="flex flex-col items-center gap-3 animate-bounce">
+            <p
+              className="font-game text-4xl md:text-5xl text-primary"
+              style={{ textShadow: '0 0 30px hsl(190 100% 50% / 0.7), 0 0 60px hsl(190 100% 50% / 0.4)' }}
+            >
+              TAP TO PLAY
+            </p>
+            <div className="flex gap-2 mt-1">
+              <span className="w-2 h-2 rounded-full bg-primary/80 animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-primary/60 animate-pulse" style={{ animationDelay: '0.2s' }} />
+              <span className="w-2 h-2 rounded-full bg-primary/40 animate-pulse" style={{ animationDelay: '0.4s' }} />
+            </div>
+          </div>
         </div>
       )}
 
