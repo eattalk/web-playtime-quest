@@ -447,6 +447,174 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     ctx.fillRect(0, 0, w, h);
     drawBgStars(ctx, w, h, timestamp, dt);
 
+    // ── DEMO phase: AI-piloted preview ──────────────────
+    if (g.phase === 'demo') {
+      const DEMO_DUR = 8; // seconds
+      if (g.demoStartTime === 0) g.demoStartTime = timestamp;
+      g.demoElapsed = (timestamp - g.demoStartTime) / 1000;
+
+      // AI movement: smoothly navigate waypoints
+      const wp = DEMO_WAYPOINTS[g.demoWaypointIdx % DEMO_WAYPOINTS.length];
+      const targetX = wp[0] * w - g.player.w / 2;
+      const targetY = wp[1] * h - g.player.h / 2;
+      const dx = targetX - g.player.x;
+      const dy = targetY - g.player.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const lf = 1 - Math.pow(0.88, dt * 60);
+      g.player.x += dx * lf;
+      g.player.y += dy * lf;
+      if (dist < 18) g.demoWaypointIdx++;
+
+      // Clamp
+      g.player.x = Math.max(0, Math.min(w - g.player.w, g.player.x));
+      g.player.y = Math.max(h * 0.1, Math.min(h - g.player.h - 10, g.player.y));
+
+      // Spawn & update objects (same as playing)
+      const demoDiff = 1 + g.demoElapsed * 0.06;
+      const starI = Math.max(0.12, 0.3 - g.demoElapsed * 0.002);
+      const bombI = Math.max(0.06, 0.16 - g.demoElapsed * 0.002);
+      if (g.demoElapsed - g.lastStar > starI) {
+        g.objects.push({ x: rand(20, w-20), y: -20, type:'star', size:rand(10,16),
+          speed: rand(100,200)*demoDiff, rotation:rand(0,Math.PI*2),
+          vx:0, vy:0, sineAmp:0, sineFreq:0, originX:0, originY:0, age:0,
+          pattern:'straight', accelX:0, accelY:0, spiralR:0, spiralSpeed:0, spiralAngle:0 });
+        g.lastStar = g.demoElapsed;
+      }
+      if (g.demoElapsed - g.lastBomb > bombI) {
+        const bx = rand(20, w-20);
+        const patterns: BombPattern[] = ['straight','sine','zigzag','diagonal'];
+        const pat = patterns[Math.floor(Math.random()*patterns.length)];
+        let vx = 0, sineAmp = 0, sineFreq = 0;
+        if (pat==='sine')    { sineAmp=rand(40,100); sineFreq=rand(1.0,3.0); }
+        if (pat==='zigzag')  { vx=rand(-200,200); sineAmp=rand(20,50); sineFreq=rand(2,4); }
+        if (pat==='diagonal'){ vx=rand(-200,200); }
+        g.objects.push({ x:bx, y:-20, type:'bomb', size:rand(12,18),
+          speed:rand(100,220)*demoDiff, rotation:0,
+          vx, vy:0, sineAmp, sineFreq, originX:bx, originY:-20, age:0, pattern:pat,
+          accelX:0, accelY:0, spiralR:0, spiralSpeed:0, spiralAngle:0 });
+        g.lastBomb = g.demoElapsed;
+      }
+
+      // Auto-fire (demo)
+      const cfg = getBulletConfig(Math.min(Math.floor(g.demoElapsed / 2), 3));
+      if (g.demoElapsed - g.lastBullet > cfg.interval) {
+        const bc = cfg.interval < 0.14 ? 3 : cfg.interval < 0.18 ? 2 : 1;
+        const spread = bc > 1 ? 16 : 0;
+        for (let i = 0; i < bc; i++) {
+          g.bullets.push({ x: g.player.x + g.player.w/2 - cfg.w/2 + (i-(bc-1)/2)*spread,
+            y: g.player.y - cfg.h, w:cfg.w, h:cfg.h,
+            level: Math.min(Math.floor(g.demoElapsed/2),3), hue:cfg.color, trail:[] });
+        }
+        g.lastBullet = g.demoElapsed;
+        playShoot(0);
+      }
+
+      // Update bullets
+      g.bullets = g.bullets.filter(b => {
+        const c = getBulletConfig(b.level);
+        b.trail.push({ x: b.x+b.w/2, y: b.y+b.h/2 });
+        if (b.trail.length > 8) b.trail.shift();
+        b.y -= c.speed * dt;
+        return b.y + b.h > 0;
+      });
+
+      // Update objects (simplified — no player collision in demo)
+      g.objects = g.objects.filter(obj => {
+        obj.age += dt;
+        switch (obj.pattern) {
+          case 'sine':     obj.y+=obj.speed*dt; obj.x=obj.originX+Math.sin(obj.age*obj.sineFreq*Math.PI*2)*obj.sineAmp; break;
+          case 'zigzag':   obj.y+=obj.speed*dt; obj.x+=obj.vx*dt; break;
+          case 'diagonal': obj.y+=obj.speed*dt; obj.x+=obj.vx*dt; break;
+          default:         obj.y+=obj.speed*dt; break;
+        }
+        if (obj.x < 0) obj.x = 0; if (obj.x > w) obj.x = w;
+        if (obj.y > h + 30) return false;
+        // Bullet–bomb
+        if (obj.type === 'bomb') {
+          for (let i = g.bullets.length-1; i >= 0; i--) {
+            const b = g.bullets[i];
+            if (Math.sqrt((obj.x-b.x-b.w/2)**2+(obj.y-b.y-b.h/2)**2) < obj.size+b.w) {
+              spawnParticles(obj.x, obj.y, hsl(30,100,60), 10);
+              playBombDestroy();
+              g.bullets.splice(i,1);
+              return false;
+            }
+          }
+        }
+        return true;
+      });
+
+      g.particles = g.particles.filter(p => {
+        p.x+=p.vx*dt; p.y+=p.vy*dt;
+        p.vx*=Math.pow(0.98,dt*60); p.vy*=Math.pow(0.98,dt*60);
+        p.life-=dt; return p.life>0;
+      });
+
+      // Draw scene
+      g.bullets.forEach(b => drawBullet(ctx, b, timestamp));
+      g.objects.forEach(obj => obj.type==='star' ? drawStar(ctx,obj,timestamp) : drawBomb(ctx,obj,timestamp));
+      g.particles.forEach(p => {
+        const alpha = p.life/p.maxLife;
+        ctx.globalAlpha=alpha; ctx.fillStyle=p.color;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.size*(0.5+alpha*0.5),0,Math.PI*2); ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+      drawShip(ctx, g.player.x, g.player.y, g.player.w, g.player.h, timestamp, Math.min(Math.floor(g.demoElapsed/2),3));
+
+      // Dark overlay
+      ctx.fillStyle = hsl(225,30,5,0.45);
+      ctx.fillRect(0,0,w,h);
+
+      // Pulse ring
+      const ringR = 140 + Math.sin(timestamp*0.002)*20;
+      const ring = ctx.createRadialGradient(w/2,h/2,ringR*0.6,w/2,h/2,ringR);
+      ring.addColorStop(0,hsl(190,100,60,0));
+      ring.addColorStop(0.85,hsl(190,100,60,0.12));
+      ring.addColorStop(1,hsl(190,100,60,0));
+      ctx.fillStyle=ring; ctx.beginPath(); ctx.arc(w/2,h/2,ringR,0,Math.PI*2); ctx.fill();
+
+      // Title
+      ctx.save();
+      ctx.textAlign='center';
+      const titleScale = 1 + Math.sin(timestamp*0.0015)*0.03;
+      ctx.translate(w/2, h*0.28);
+      ctx.scale(titleScale,titleScale);
+      ctx.font='900 clamp(28px,6vw,64px) Orbitron,monospace';
+      ctx.shadowColor=hsl(190,100,60); ctx.shadowBlur=40;
+      ctx.fillStyle=hsl(190,100,90);
+      ctx.fillText('SPACE SHOOTER',0,0);
+      ctx.shadowBlur=0;
+      ctx.font='600 clamp(12px,2.5vw,22px) Orbitron,monospace';
+      ctx.fillStyle=hsl(190,100,70,0.8);
+      ctx.fillText('TAP ANYWHERE TO PLAY',0,clamp(36,5*h/100,56));
+      ctx.restore();
+
+      // How-to pills
+      const pills = ['🚀 Touch / Arrow Keys to move','⭐ Collect stars','💣 Dodge & shoot bombs'];
+      pills.forEach((txt,i)=>{
+        const py = h*0.72 + i*clamp(30,4*h/100,46);
+        ctx.font=`500 clamp(11px,2vw,18px) Orbitron,monospace`;
+        ctx.textAlign='center';
+        const tw = ctx.measureText(txt).width;
+        ctx.fillStyle=hsl(225,30,10,0.7);
+        ctx.beginPath(); ctx.roundRect(w/2-tw/2-18,py-18,tw+36,30,15); ctx.fill();
+        ctx.fillStyle=hsl(190,80,80,0.9);
+        ctx.fillText(txt, w/2, py);
+      });
+
+      // Progress bar at bottom
+      const prog = Math.min(g.demoElapsed/DEMO_DUR,1);
+      ctx.fillStyle=hsl(225,30,15,0.6);
+      ctx.beginPath(); ctx.roundRect(w/2-100,h-28,200,8,4); ctx.fill();
+      ctx.fillStyle=hsl(190,100,60,0.8);
+      ctx.beginPath(); ctx.roundRect(w/2-100,h-28,200*prog,8,4); ctx.fill();
+
+      setDemoTimeLeft(Math.max(0, Math.ceil(DEMO_DUR - g.demoElapsed)));
+
+      ctx.restore();
+      return;
+    }
+
     if (g.phase !== 'playing') { ctx.restore(); return; }
 
     const elapsedMs = timestamp - g.startTime;
