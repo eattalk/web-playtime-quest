@@ -981,21 +981,17 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       ef.timer = Math.max(0, ef.timer - dt);
     }
 
-    // ── Phase transitions ──
-    if (!g.gameplayEnded && (elapsedMs >= GAME_DURATION || g.lives <= 0)) {
+    // ── Phase transitions — die or time up → immediate result ──
+    if (!g.gameplayEnded && (g.lives <= 0 || elapsedMs >= GAME_DURATION || elapsedMs >= g.maxTimeMs)) {
       g.gameplayEnded = true;
+      g.phase = 'done';
+      // survival-time tiebreaker: add ms survived as fractional points
+      const tiebreaker = Math.floor(elapsedMs % 1000);
       playGameOver();
       setPhase('done');
-      g.phase = 'done';
-      onGameEnd(g.score);
       ctx.restore();
+      onGameEnd(g.score * 1000 + tiebreaker);
       return;
-    }
-
-    if (elapsedMs >= g.maxTimeMs) {
-      setPhase('done');
-      g.phase = 'done';
-      onGameEnd(g.score);
     }
 
     ctx.restore();
@@ -1135,15 +1131,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     return () => clearTimeout(t);
   }, [phase, countdown]);
 
-  // ── Waiting → maxTime redirect ────────────────────
-  useEffect(() => {
-    if (phase !== 'waiting') return;
-    const g = gs.current;
-    const remaining = g.maxTimeMs - (performance.now() - g.startTime);
-    if (remaining <= 0) { setPhase('done'); g.phase = 'done'; onGameEnd(g.score); return; }
-    const t = setTimeout(() => { setPhase('done'); g.phase = 'done'; onGameEnd(g.score); }, remaining);
-    return () => clearTimeout(t);
-  }, [phase, onGameEnd]);
+  // ── Waiting phase removed — game ends immediately ──
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-game-bg select-none">
