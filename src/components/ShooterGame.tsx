@@ -955,10 +955,49 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     return () => clearTimeout(t);
   }, [phase, onGameEnd]);
 
-  // ── Auto-start: show instructions then auto-countdown ──
+  // ── Demo phase: init & timer countdown ──
+  useEffect(() => {
+    if (phase !== 'demo') return;
+    const g = gs.current;
+    // Reset demo state
+    g.bullets = [];
+    g.objects = [];
+    g.particles = [];
+    g.score = 0;
+    g.lives = MAX_LIVES;
+    g.lastBullet = 0;
+    g.lastStar = 0;
+    g.lastBomb = 0;
+    g.prevBulletLevel = 0;
+    g.evolveFlash = { timer: 0, label: '', hue: 190 };
+    g.lastFrameTime = 0;
+    g.demoStartTime = performance.now();
+    g.phase = 'demo';
+    setBulletLevel(0);
+
+    // Countdown display
+    setDemoTimeLeft(8);
+    const interval = setInterval(() => {
+      setDemoTimeLeft(t => {
+        if (t <= 1) { clearInterval(interval); return 0; }
+        return t - 1;
+      });
+    }, 1000);
+
+    // After 8s → go to instructions overlay (still running on same canvas)
+    const t = setTimeout(() => {
+      setPhase('instructions');
+      g.phase = 'instructions';
+    }, 8000);
+
+    return () => { clearTimeout(t); clearInterval(interval); };
+  }, [phase]);
+
+  // ── Auto-transition instructions → countdown ──
   useEffect(() => {
     if (phase !== 'instructions') return;
-    const t = setTimeout(() => { setPhase('countdown'); setCountdown(3); }, 3000);
+    // Just show the overlay; user must tap START or it auto-starts after 5s
+    const t = setTimeout(() => { setPhase('countdown'); setCountdown(3); }, 5000);
     return () => clearTimeout(t);
   }, [phase]);
 
@@ -968,7 +1007,45 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     <div className="relative w-full h-screen overflow-hidden bg-game-bg select-none">
       <canvas ref={canvasRef} className="absolute inset-0" />
 
-      {/* Instructions */}
+      {/* Demo overlay — live gameplay plays behind this */}
+      {phase === 'demo' && (
+        <div className="absolute inset-0 z-10 pointer-events-none flex flex-col">
+          {/* Top banner */}
+          <div className="flex flex-col items-center pt-6 gap-1">
+            <div className="bg-background/60 backdrop-blur-sm px-5 py-1.5 rounded-full border border-primary/30">
+              <span className="font-game text-xs tracking-widest text-primary/80 uppercase">DEMO</span>
+            </div>
+          </div>
+
+          {/* Bottom info */}
+          <div className="mt-auto mb-8 flex flex-col items-center gap-3 px-6">
+            <h1 className="font-game text-2xl md:text-4xl text-primary text-glow animate-pulse-glow drop-shadow-lg">
+              SPACE SHOOTER
+            </h1>
+            <div className="bg-background/65 backdrop-blur-md rounded-2xl px-6 py-3 border border-primary/20 flex flex-col items-center gap-1.5">
+              <p className="font-game-body text-foreground/90 text-sm md:text-base text-center">
+                🚀 Touch screen to move &nbsp;·&nbsp; 🔫 Auto-fire &nbsp;·&nbsp; ⭐ Collect Stars &nbsp;·&nbsp; 💣 Avoid Bombs
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-game text-muted-foreground/70 text-sm">Starting in</span>
+              <span className="font-game text-3xl text-primary text-glow" style={{ textShadow: '0 0 20px hsl(190 100% 50% / 0.6)' }}>
+                {demoTimeLeft}
+              </span>
+              <span className="font-game text-muted-foreground/70 text-sm">sec</span>
+            </div>
+            {/* Tap-anywhere to start early */}
+            <button
+              className="pointer-events-auto mt-1 font-game text-base px-7 py-2.5 rounded-xl bg-primary/90 text-primary-foreground box-glow hover:brightness-110 active:scale-95 transition-all animate-pulse-glow"
+              onClick={startGame}
+            >
+              TAP TO START
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Instructions overlay — shown after demo, before countdown */}
       {phase === 'instructions' && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-background/80 backdrop-blur-md px-6">
           <h1 className="font-game text-3xl md:text-5xl text-primary text-glow mb-6 animate-pulse-glow">
