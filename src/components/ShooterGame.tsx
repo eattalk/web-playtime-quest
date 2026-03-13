@@ -772,9 +772,15 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
 
     const onKD = (e: KeyboardEvent) => { e.preventDefault(); gs.current.keys.add(e.key); };
     const onKU = (e: KeyboardEvent) => gs.current.keys.delete(e.key);
-    const onTS = (e: TouchEvent) => { gs.current.touchX = e.touches[0].clientX; gs.current.touchY = e.touches[0].clientY; };
+    const onTS = (e: TouchEvent) => {
+      // Demo: tap anywhere → start game
+      if (gs.current.phase === 'demo') { startGame(); return; }
+      gs.current.touchX = e.touches[0].clientX;
+      gs.current.touchY = e.touches[0].clientY;
+    };
     const onTM = (e: TouchEvent) => { e.preventDefault(); gs.current.touchX = e.touches[0].clientX; gs.current.touchY = e.touches[0].clientY; };
     const onTE = () => { gs.current.touchX = null; gs.current.touchY = null; };
+    const onMouseDown = () => { if (gs.current.phase === 'demo') startGame(); };
 
     window.addEventListener('keydown', onKD);
     window.addEventListener('keyup', onKU);
