@@ -1108,8 +1108,8 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     g.demoStartTime  = 0;
     g.demoElapsed    = 0;
     g.demoWaypointIdx = 0;
-    g.player.x = g.W / 2 - 22;
-    g.player.y = g.H - 90;
+    g.player.x = g.W / 2 - g.player.w / 2;
+    g.player.y = g.H - 100;
     setScore(0);
     setLives(MAX_LIVES);
     setElapsed(0);
