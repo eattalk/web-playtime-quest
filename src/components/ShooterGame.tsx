@@ -787,6 +787,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     canvas.addEventListener('touchstart', onTS, { passive: false });
     canvas.addEventListener('touchmove', onTM, { passive: false });
     canvas.addEventListener('touchend', onTE);
+    canvas.addEventListener('mousedown', onMouseDown);
 
     // ── Single RAF loop — guarded by loopRunning ──
     let rafId = 0;
@@ -804,6 +805,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       canvas.removeEventListener('touchstart', onTS);
       canvas.removeEventListener('touchmove', onTM);
       canvas.removeEventListener('touchend', onTE);
+      canvas.removeEventListener('mousedown', onMouseDown);
     };
   }, [gameLoop, initBgStars]);
 
