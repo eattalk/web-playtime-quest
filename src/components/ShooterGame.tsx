@@ -866,7 +866,14 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
             playBombHit();
             g.shakeAmount    = 18;
             g.hitFlashTimer  = 0.25;
-            if (g.lives <= 0) g.gameplayEnded = true;
+            if (g.lives <= 0) {
+              g.gameplayEnded = true;
+              g.phase = 'done';
+              playGameOver();
+              setPhase('done');
+              const tiebreaker = Math.floor((performance.now() - g.startTime) % 1000);
+              onGameEnd(g.score * 1000 + tiebreaker);
+            }
           }
           return false;
         }
