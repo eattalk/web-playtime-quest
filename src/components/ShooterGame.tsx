@@ -1013,15 +1013,11 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     if (!g.gameplayEnded && (elapsedMs >= GAME_DURATION || g.lives <= 0)) {
       g.gameplayEnded = true;
       playGameOver();
-      if (g.lives <= 0) {
-        setPhase('done');
-        g.phase = 'done';
-        onGameEnd(g.score);
-        ctx.restore();
-        return;
-      }
-      setPhase('waiting');
-      g.phase = 'waiting';
+      setPhase('done');
+      g.phase = 'done';
+      onGameEnd(g.score);
+      ctx.restore();
+      return;
     }
 
     if (elapsedMs >= g.maxTimeMs) {
