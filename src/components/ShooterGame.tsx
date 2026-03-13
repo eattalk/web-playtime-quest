@@ -32,6 +32,8 @@ interface FallingObj extends Vec2 {
   spiralR: number;  // spiral radius
   spiralSpeed: number; // rad/s
   spiralAngle: number;
+  hp: number;       // hits required to destroy
+  maxHp: number;
 }
 interface Particle extends Vec2 { vx: number; vy: number; life: number; maxLife: number; color: string; size: number; }
 interface BgStar extends Vec2 { size: number; brightness: number; speed: number; }  // speed px/s
@@ -474,7 +476,8 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
         g.objects.push({ x: rand(20, w-20), y: -20, type:'star', size:rand(10,16),
           speed: rand(100,200)*demoDiff, rotation:rand(0,Math.PI*2),
           vx:0, vy:0, sineAmp:0, sineFreq:0, originX:0, originY:0, age:0,
-          pattern:'straight', accelX:0, accelY:0, spiralR:0, spiralSpeed:0, spiralAngle:0 });
+          pattern:'straight', accelX:0, accelY:0, spiralR:0, spiralSpeed:0, spiralAngle:0,
+          hp:1, maxHp:1 });
         g.lastStar = g.demoElapsed;
       }
       if (g.demoElapsed - g.lastBomb > bombI) {
@@ -488,7 +491,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
         g.objects.push({ x:bx, y:-20, type:'bomb', size:rand(12,18),
           speed:rand(100,220)*demoDiff, rotation:0,
           vx, vy:0, sineAmp, sineFreq, originX:bx, originY:-20, age:0, pattern:pat,
-          accelX:0, accelY:0, spiralR:0, spiralSpeed:0, spiralAngle:0 });
+          accelX:0, accelY:0, spiralR:0, spiralSpeed:0, spiralAngle:0, hp:2, maxHp:2 });
         g.lastBomb = g.demoElapsed;
       }
 
@@ -681,6 +684,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
           vx: 0, vy: 0, sineAmp: 0, sineFreq: 0,
           originX: 0, originY: 0, age: 0, pattern: 'straight',
           accelX: 0, accelY: 0, spiralR: 0, spiralSpeed: 0, spiralAngle: 0,
+          hp: 1, maxHp: 1,
         });
         g.lastStar = elapsedSec;
       }
@@ -694,8 +698,8 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
                            elapsedMs > 10000 ? (Math.random() < 0.45 ? 2 : 1) : 1;
 
         for (let b = 0; b < burstCount; b++) {
-          // 40% chance to aim directly at player — punishes standing still
-          const targeted = Math.random() < 0.40;
+          // 65% chance to aim directly at player — punishes standing still
+          const targeted = Math.random() < 0.65;
           const bx = targeted
             ? g.player.x + g.player.w / 2 + rand(-30, 30)
             : rand(20, w - 20);
@@ -760,6 +764,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
             age: 0, pattern,
             accelX, accelY,
             spiralR, spiralSpeed, spiralAngle,
+            hp: 3, maxHp: 3,
           });
         }
         g.lastBomb = elapsedSec;
@@ -863,19 +868,25 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
         }
       }
 
-      // Bullet–bomb collision
+      // Bullet–bomb collision — HP system (3 hits to destroy)
       if (obj.type === 'bomb') {
         for (let i = g.bullets.length - 1; i >= 0; i--) {
           const b  = g.bullets[i];
           const bx = b.x + b.w / 2;
           const by = b.y + b.h / 2;
           if (Math.sqrt((obj.x - bx) ** 2 + (obj.y - by) ** 2) < obj.size + b.w) {
-            g.score += 5;
-            setScore(g.score);
-            spawnParticles(obj.x, obj.y, hsl(30, 100, 60), 12);
-            playBombDestroy();
+            obj.hp--;
             g.bullets.splice(i, 1);
-            return false;
+            if (obj.hp <= 0) {
+              g.score += 5;
+              setScore(g.score);
+              spawnParticles(obj.x, obj.y, hsl(30, 100, 60), 12);
+              playBombDestroy();
+              return false;
+            }
+            // Hit but not destroyed — flash particles
+            spawnParticles(obj.x, obj.y, hsl(30, 80, 60), 4);
+            break; // one bullet per frame
           }
         }
       }
