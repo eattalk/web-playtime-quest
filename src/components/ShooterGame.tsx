@@ -764,6 +764,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
             age: 0, pattern,
             accelX, accelY,
             spiralR, spiralSpeed, spiralAngle,
+            hp: 3, maxHp: 3,
           });
         }
         g.lastBomb = elapsedSec;
