@@ -452,21 +452,19 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       if (g.demoStartTime === 0) g.demoStartTime = timestamp;
       g.demoElapsed = (timestamp - g.demoStartTime) / 1000;
 
-      // AI movement: smoothly navigate waypoints
-      const wp = DEMO_WAYPOINTS[g.demoWaypointIdx % DEMO_WAYPOINTS.length];
-      const targetX = wp[0] * w - g.player.w / 2;
-      const targetY = wp[1] * h - g.player.h / 2;
-      const dx = targetX - g.player.x;
-      const dy = targetY - g.player.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const lf = 1 - Math.pow(0.88, dt * 60);
-      g.player.x += dx * lf;
-      g.player.y += dy * lf;
-      if (dist < 18) g.demoWaypointIdx++;
+      // AI movement: gentle left-right sine drift near bottom center
+      const t = g.demoElapsed;
+      const targetX = w / 2 - g.player.w / 2
+        + Math.sin(t * 0.55) * w * 0.22
+        + Math.sin(t * 0.23) * w * 0.08;
+      const targetY = h * 0.78 - g.player.h / 2;
+      const lf = 1 - Math.pow(0.92, dt * 60);
+      g.player.x += (targetX - g.player.x) * lf;
+      g.player.y += (targetY - g.player.y) * lf;
 
       // Clamp
       g.player.x = Math.max(0, Math.min(w - g.player.w, g.player.x));
-      g.player.y = Math.max(h * 0.1, Math.min(h - g.player.h - 10, g.player.y));
+      g.player.y = Math.max(h * 0.5, Math.min(h - g.player.h - 10, g.player.y));
 
       // Spawn & update objects (same as playing)
       const demoDiff = 1 + g.demoElapsed * 0.06;
