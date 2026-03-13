@@ -91,6 +91,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     hitFlashTimer: 0,    // seconds
     lastFrameTime: 0,    // performance.now() of last RAF
     evolveFlash: { timer: 0, label: '', hue: 190 }, // evolution flash
+    demoAiTarget: { x: 0, y: 0 },                   // AI pilot target in demo
   });
 
   const initBgStars = useCallback((w: number, h: number) => {
