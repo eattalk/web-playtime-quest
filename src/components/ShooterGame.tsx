@@ -57,7 +57,7 @@ function getBulletConfig(level: number) {
 
 export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [phase, setPhase] = useState<GamePhase>('instructions');
+  const [phase, setPhase] = useState<GamePhase>('demo');
   const [countdown, setCountdown] = useState(3);
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(MAX_LIVES);
