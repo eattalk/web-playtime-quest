@@ -994,11 +994,11 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     if (!g.gameplayEnded && (elapsedMs >= GAME_DURATION || elapsedMs >= g.maxTimeMs)) {
       g.gameplayEnded = true;
       g.phase = 'done';
-      const tiebreaker = Math.floor(elapsedMs % 1000);
+      const survivedMs = Math.floor(elapsedMs);
       playGameOver();
       setPhase('done');
       ctx.restore();
-      onGameEnd(g.score * 1000 + tiebreaker);
+      onGameEnd(g.score * 100000 + survivedMs);
       return;
     }
   }, [drawBgStars, drawBullet, drawBomb, drawStar, drawShip, drawHUD, spawnParticles, onGameEnd]);
