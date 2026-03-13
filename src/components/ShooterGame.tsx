@@ -83,7 +83,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
   const [bulletLevel, setBulletLevel] = useState(0);
 
   const gs = useRef({
-    player: { x: 0, y: 0, w: 44, h: 44 },
+    player: { x: 0, y: 0, w: 56, h: 56 },
     bullets:   [] as Bullet[],
     objects:   [] as FallingObj[],
     particles: [] as Particle[],
@@ -1015,12 +1015,15 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     if (!ctx) return;
 
     const resize = () => {
-      canvas.width  = window.innerWidth;
-      canvas.height = window.innerHeight;
+      // Use container size (tablet landscape 1200×800 target)
+      canvas.width  = canvas.parentElement?.clientWidth  ?? window.innerWidth;
+      canvas.height = canvas.parentElement?.clientHeight ?? window.innerHeight;
       gs.current.W  = canvas.width;
       gs.current.H  = canvas.height;
-      gs.current.player.x = canvas.width / 2 - 22;
-      gs.current.player.y = canvas.height - 90;
+      const pw = gs.current.player.w;
+      const ph = gs.current.player.h;
+      gs.current.player.x = canvas.width / 2 - pw / 2;
+      gs.current.player.y = canvas.height - 100;
       if (gs.current.bgStars.length === 0) initBgStars(canvas.width, canvas.height);
     };
     resize();
@@ -1105,8 +1108,8 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     g.demoStartTime  = 0;
     g.demoElapsed    = 0;
     g.demoWaypointIdx = 0;
-    g.player.x = g.W / 2 - 22;
-    g.player.y = g.H - 90;
+    g.player.x = g.W / 2 - g.player.w / 2;
+    g.player.y = g.H - 100;
     setScore(0);
     setLives(MAX_LIVES);
     setElapsed(0);

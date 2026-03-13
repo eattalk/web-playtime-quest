@@ -4,10 +4,12 @@ export default function GameResult() {
   const [searchParams] = useSearchParams();
   const raw = parseInt(searchParams.get('score') || '0', 10);
 
-  // score encoded as: baseScore * 100000 + survivedMs
-  // This guarantees no ties — even same base score has unique ms tiebreaker
+  // score encoded as: baseScore * 100000 + survivedMs (0~99999)
+  // Display as decimal: e.g. 1004235 → "10.04235"
   const baseScore = Math.floor(raw / 100000);
-  const display = raw >= 100000 ? baseScore : raw; // fallback for old format
+  const survivedMs = raw % 100000;
+  const decimalPart = String(survivedMs).padStart(5, '0');
+  const displayScore = raw >= 100000 ? `${baseScore}.${decimalPart}` : String(raw);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
@@ -17,8 +19,8 @@ export default function GameResult() {
         </h1>
         <div className="space-y-2">
           <p className="font-game-body text-xl text-muted-foreground">Your Score</p>
-          <p className="font-game text-6xl md:text-8xl text-accent text-glow-accent">
-            {display}
+          <p className="font-game text-5xl md:text-7xl text-accent text-glow-accent tracking-tight">
+            {displayScore}
           </p>
         </div>
         <p className="font-game-body text-muted-foreground text-sm animate-pulse">
