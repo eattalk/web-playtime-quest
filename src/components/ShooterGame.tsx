@@ -1018,19 +1018,35 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     resize();
     window.addEventListener('resize', resize);
 
-    const onKD = (e: KeyboardEvent) => { e.preventDefault(); gs.current.keys.add(e.key); };
+    const onKD = (e: KeyboardEvent) => {
+      e.preventDefault();
+      // Any keypress during demo → skip to countdown
+      if (gs.current.phase === 'demo') { launchCountdown(); return; }
+      gs.current.keys.add(e.key);
+    };
     const onKU = (e: KeyboardEvent) => gs.current.keys.delete(e.key);
-    const onTS = (e: TouchEvent) => { gs.current.touchX = e.touches[0].clientX; gs.current.touchY = e.touches[0].clientY; };
-    const onTM = (e: TouchEvent) => { e.preventDefault(); gs.current.touchX = e.touches[0].clientX; gs.current.touchY = e.touches[0].clientY; };
+    const onTS = (e: TouchEvent) => {
+      if (gs.current.phase === 'demo') { launchCountdown(); return; }
+      gs.current.touchX = e.touches[0].clientX;
+      gs.current.touchY = e.touches[0].clientY;
+    };
+    const onTM = (e: TouchEvent) => {
+      e.preventDefault();
+      if (gs.current.phase === 'demo') return;
+      gs.current.touchX = e.touches[0].clientX;
+      gs.current.touchY = e.touches[0].clientY;
+    };
     const onTE = () => { gs.current.touchX = null; gs.current.touchY = null; };
+    const onClick = () => { if (gs.current.phase === 'demo') launchCountdown(); };
 
     window.addEventListener('keydown', onKD);
     window.addEventListener('keyup', onKU);
+    canvas.addEventListener('click', onClick);
     canvas.addEventListener('touchstart', onTS, { passive: false });
     canvas.addEventListener('touchmove', onTM, { passive: false });
     canvas.addEventListener('touchend', onTE);
 
-    // ── Single RAF loop — guarded by loopRunning ──
+    // ── Single RAF loop ──
     let rafId = 0;
     const loop = (ts: number) => {
       gameLoop(ctx, ts);
@@ -1043,11 +1059,53 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       window.removeEventListener('resize', resize);
       window.removeEventListener('keydown', onKD);
       window.removeEventListener('keyup', onKU);
+      canvas.removeEventListener('click', onClick);
       canvas.removeEventListener('touchstart', onTS);
       canvas.removeEventListener('touchmove', onTM);
       canvas.removeEventListener('touchend', onTE);
     };
   }, [gameLoop, initBgStars]);
+
+  // ── Demo auto-end (8 s) ───────────────────────────
+  useEffect(() => {
+    if (phase !== 'demo') return;
+    const t = setTimeout(() => launchCountdown(), 8000);
+    return () => clearTimeout(t);
+  }, [phase]);
+
+  // ── Launch countdown & fully reset game state ─────
+  const launchCountdown = useCallback(() => {
+    const g = gs.current;
+    if (g.phase !== 'demo') return; // guard against double-call
+    // Hard-reset all game state so play starts fresh
+    g.phase          = 'countdown';
+    g.bullets        = [];
+    g.objects        = [];
+    g.particles      = [];
+    g.score          = 0;
+    g.lives          = MAX_LIVES;
+    g.startTime      = 0;
+    g.lastBullet     = 0;
+    g.lastStar       = 0;
+    g.lastBomb       = 0;
+    g.lastFrameTime  = 0;
+    g.prevBulletLevel = 0;
+    g.shakeAmount    = 0;
+    g.hitFlashTimer  = 0;
+    g.gameplayEnded  = false;
+    g.evolveFlash    = { timer: 0, label: '', hue: 190 };
+    g.demoStartTime  = 0;
+    g.demoElapsed    = 0;
+    g.demoWaypointIdx = 0;
+    g.player.x = g.W / 2 - 22;
+    g.player.y = g.H - 90;
+    setScore(0);
+    setLives(MAX_LIVES);
+    setElapsed(0);
+    setBulletLevel(0);
+    setCountdown(3);
+    setPhase('countdown');
+  }, []);
 
   // ── Countdown ─────────────────────────────────────
   useEffect(() => {
@@ -1060,7 +1118,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       g.lastBullet     = 0;
       g.lastStar       = 0;
       g.lastBomb       = 0;
-      g.lastFrameTime  = 0;  // reset so first dt is clean
+      g.lastFrameTime  = 0;
       g.prevBulletLevel = 0;
       setPhase('playing');
       playCountdownGo();
@@ -1081,39 +1139,9 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     return () => clearTimeout(t);
   }, [phase, onGameEnd]);
 
-  // ── Auto-start: show instructions then auto-countdown ──
-  useEffect(() => {
-    if (phase !== 'instructions') return;
-    const t = setTimeout(() => { setPhase('countdown'); setCountdown(3); }, 3000);
-    return () => clearTimeout(t);
-  }, [phase]);
-
-  const startGame = () => { setPhase('countdown'); setCountdown(3); };
-
   return (
     <div className="relative w-full h-screen overflow-hidden bg-game-bg select-none">
       <canvas ref={canvasRef} className="absolute inset-0" />
-
-      {/* Instructions */}
-      {phase === 'instructions' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-background/80 backdrop-blur-md px-6">
-          <h1 className="font-game text-3xl md:text-5xl text-primary text-glow mb-6 animate-pulse-glow">
-            SPACE SHOOTER
-          </h1>
-          <div className="max-w-md space-y-3 text-center font-game-body text-lg text-foreground/90">
-            <p className="text-accent text-glow-accent text-xl font-semibold">How to Play</p>
-            <p>🚀 Move with <span className="text-primary">Arrow Keys / WASD</span> or <span className="text-primary">Touch</span></p>
-            <p>🔫 Auto-fire — bullets <span className="text-secondary">evolve every 4s!</span></p>
-            <p>⭐ Collect <span className="text-accent">Stars</span> for points</p>
-            <p>💣 Avoid <span className="text-destructive">Bombs</span> — 2 lives!</p>
-            <p>🎯 Shoot bombs to destroy them</p>
-            <p className="text-muted-foreground text-sm">Difficulty increases over time</p>
-          </div>
-          <button onClick={startGame} className="mt-8 font-game text-lg px-8 py-3 rounded-lg bg-primary text-primary-foreground box-glow hover:brightness-110 transition-all animate-pulse-glow">
-            START GAME
-          </button>
-        </div>
-      )}
 
       {/* Countdown */}
       {phase === 'countdown' && (
