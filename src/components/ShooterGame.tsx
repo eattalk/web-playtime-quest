@@ -874,31 +874,6 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     g.startTime = 0; // will be lazily set in game loop
   }, [phase]);
 
-  const startGame = useCallback(() => {
-    const g = gs.current;
-    g.score = 0;
-    g.lives = MAX_LIVES;
-    g.objects = [];
-    g.bullets = [];
-    g.particles = [];
-    g.gameplayEnded = false;
-    g.prevBulletLevel = 0;
-    g.evolveFlash = { timer: 0, label: '', hue: 190 };
-    g.lastBullet = 0;
-    g.lastStar = 0;
-    g.lastBomb = 0;
-    g.lastFrameTime = 0;
-    g.startTime = 0;
-    g.shakeAmount = 0;
-    g.hitFlashTimer = 0;
-    g.phase = 'countdown';
-    setScore(0);
-    setLives(MAX_LIVES);
-    setBulletLevel(0);
-    setCountdown(3);
-    setPhase('countdown');
-  }, []);
-
   return (
     <div className="relative w-full h-screen overflow-hidden bg-game-bg select-none">
       <canvas ref={canvasRef} className="absolute inset-0" />
