@@ -32,6 +32,8 @@ interface FallingObj extends Vec2 {
   spiralR: number;  // spiral radius
   spiralSpeed: number; // rad/s
   spiralAngle: number;
+  hp: number;       // hits required to destroy
+  maxHp: number;
 }
 interface Particle extends Vec2 { vx: number; vy: number; life: number; maxLife: number; color: string; size: number; }
 interface BgStar extends Vec2 { size: number; brightness: number; speed: number; }  // speed px/s
