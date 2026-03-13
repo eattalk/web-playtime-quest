@@ -996,7 +996,11 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     ctx.restore();
   }, [drawBgStars, drawBullet, drawBomb, drawStar, drawShip, drawHUD, spawnParticles, onGameEnd]);
 
-  // ── Canvas & input setup ──────────────────────────
+  // ── Stable ref for gameLoop to avoid RAF restarts ──
+  const gameLoopRef = useRef(gameLoop);
+  useEffect(() => { gameLoopRef.current = gameLoop; }, [gameLoop]);
+
+  // ── Canvas & input setup (runs once) ──────────────
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -1017,7 +1021,6 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
 
     const onKD = (e: KeyboardEvent) => {
       e.preventDefault();
-      // Any keypress during demo → skip to countdown
       if (gs.current.phase === 'demo') { launchCountdown(); return; }
       gs.current.keys.add(e.key);
     };
@@ -1043,10 +1046,10 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     canvas.addEventListener('touchmove', onTM, { passive: false });
     canvas.addEventListener('touchend', onTE);
 
-    // ── Single RAF loop ──
+    // ── Single RAF loop — uses ref to avoid re-registering ──
     let rafId = 0;
     const loop = (ts: number) => {
-      gameLoop(ctx, ts);
+      gameLoopRef.current(ctx, ts);
       rafId = requestAnimationFrame(loop);
     };
     rafId = requestAnimationFrame(loop);
@@ -1061,7 +1064,8 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       canvas.removeEventListener('touchmove', onTM);
       canvas.removeEventListener('touchend', onTE);
     };
-  }, [gameLoop, initBgStars]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initBgStars]);
 
   // ── Demo auto-end (8 s) ───────────────────────────
   useEffect(() => {
