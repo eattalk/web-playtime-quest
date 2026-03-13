@@ -812,11 +812,11 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
           obj.y = obj.originY + obj.age * obj.speed;
           break;
         case 'homing': {
-          // Gradually steer toward player
+          // Aggressively steer toward player
           const tx = pcx - obj.x;
           const ty = pcy - obj.y;
           const dist = Math.sqrt(tx * tx + ty * ty) || 1;
-          const homingStr = 120 * dt;
+          const homingStr = 320 * dt;
           obj.vx += (tx / dist) * homingStr;
           obj.vy += (ty / dist) * homingStr;
           // clamp speed
