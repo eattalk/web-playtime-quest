@@ -1131,15 +1131,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     return () => clearTimeout(t);
   }, [phase, countdown]);
 
-  // ── Waiting → maxTime redirect ────────────────────
-  useEffect(() => {
-    if (phase !== 'waiting') return;
-    const g = gs.current;
-    const remaining = g.maxTimeMs - (performance.now() - g.startTime);
-    if (remaining <= 0) { setPhase('done'); g.phase = 'done'; onGameEnd(g.score); return; }
-    const t = setTimeout(() => { setPhase('done'); g.phase = 'done'; onGameEnd(g.score); }, remaining);
-    return () => clearTimeout(t);
-  }, [phase, onGameEnd]);
+  // ── Waiting phase removed — game ends immediately ──
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-game-bg select-none">
