@@ -807,7 +807,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       canvas.removeEventListener('touchend', onTE);
       canvas.removeEventListener('mousedown', onMouseDown);
     };
-  }, [gameLoop, initBgStars]);
+  }, [gameLoop, initBgStars, startGame]);
 
   // ── Countdown ─────────────────────────────────────
   useEffect(() => {
