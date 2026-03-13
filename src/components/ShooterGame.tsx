@@ -476,7 +476,8 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
         g.objects.push({ x: rand(20, w-20), y: -20, type:'star', size:rand(10,16),
           speed: rand(100,200)*demoDiff, rotation:rand(0,Math.PI*2),
           vx:0, vy:0, sineAmp:0, sineFreq:0, originX:0, originY:0, age:0,
-          pattern:'straight', accelX:0, accelY:0, spiralR:0, spiralSpeed:0, spiralAngle:0 });
+          pattern:'straight', accelX:0, accelY:0, spiralR:0, spiralSpeed:0, spiralAngle:0,
+          hp:1, maxHp:1 });
         g.lastStar = g.demoElapsed;
       }
       if (g.demoElapsed - g.lastBomb > bombI) {
@@ -490,7 +491,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
         g.objects.push({ x:bx, y:-20, type:'bomb', size:rand(12,18),
           speed:rand(100,220)*demoDiff, rotation:0,
           vx, vy:0, sineAmp, sineFreq, originX:bx, originY:-20, age:0, pattern:pat,
-          accelX:0, accelY:0, spiralR:0, spiralSpeed:0, spiralAngle:0 });
+          accelX:0, accelY:0, spiralR:0, spiralSpeed:0, spiralAngle:0, hp:2, maxHp:2 });
         g.lastBomb = g.demoElapsed;
       }
 
