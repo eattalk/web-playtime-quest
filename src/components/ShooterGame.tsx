@@ -887,6 +887,8 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       gs.current.H  = canvas.height;
       gs.current.player.x = canvas.width / 2 - 22;
       gs.current.player.y = canvas.height - 90;
+      demoAI.current.targetX = canvas.width / 2 - 22;
+      demoAI.current.targetY = canvas.height - 90;
       if (gs.current.bgStars.length === 0) initBgStars(canvas.width, canvas.height);
     };
     resize();
