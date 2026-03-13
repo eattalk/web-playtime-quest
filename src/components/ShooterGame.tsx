@@ -608,8 +608,6 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       ctx.fillStyle=hsl(190,100,60,0.8);
       ctx.beginPath(); ctx.roundRect(w/2-100,h-28,200*prog,8,4); ctx.fill();
 
-      setDemoTimeLeft(Math.max(0, Math.ceil(DEMO_DUR - g.demoElapsed)));
-
       ctx.restore();
       return;
     }
