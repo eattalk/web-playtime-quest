@@ -36,7 +36,7 @@ interface FallingObj extends Vec2 {
 interface Particle extends Vec2 { vx: number; vy: number; life: number; maxLife: number; color: string; size: number; }
 interface BgStar extends Vec2 { size: number; brightness: number; speed: number; }  // speed px/s
 
-type GamePhase = 'instructions' | 'countdown' | 'playing' | 'gameover' | 'waiting' | 'done';
+type GamePhase = 'demo' | 'instructions' | 'countdown' | 'playing' | 'gameover' | 'waiting' | 'done';
 
 interface ShooterGameProps {
   gameType: string;
