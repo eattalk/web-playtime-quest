@@ -36,7 +36,7 @@ interface FallingObj extends Vec2 {
 interface Particle extends Vec2 { vx: number; vy: number; life: number; maxLife: number; color: string; size: number; }
 interface BgStar extends Vec2 { size: number; brightness: number; speed: number; }  // speed px/s
 
-type GamePhase = 'instructions' | 'countdown' | 'playing' | 'gameover' | 'waiting' | 'done';
+type GamePhase = 'demo' | 'instructions' | 'countdown' | 'playing' | 'gameover' | 'waiting' | 'done';
 
 interface ShooterGameProps {
   gameType: string;
@@ -64,9 +64,16 @@ function getBulletConfig(level: number) {
   return configs[Math.min(level, configs.length - 1)];
 }
 
+// ── AI demo waypoints (relative to canvas) ───────────
+const DEMO_WAYPOINTS = [
+  [0.5, 0.8], [0.2, 0.6], [0.7, 0.4], [0.4, 0.7],
+  [0.8, 0.5], [0.3, 0.3], [0.6, 0.75], [0.5, 0.5],
+  [0.15, 0.65], [0.85, 0.35], [0.5, 0.8],
+] as const;
+
 export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [phase, setPhase] = useState<GamePhase>('instructions');
+  const [phase, setPhase] = useState<GamePhase>('demo');
   const [countdown, setCountdown] = useState(3);
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(MAX_LIVES);
@@ -88,10 +95,10 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     keys: new Set<string>(),
     touchX: null as number | null,
     touchY: null as number | null,
-    phase: 'instructions' as GamePhase,
+    phase: 'demo' as GamePhase,
     maxTimeMs: maxTime * 1000,
     gameplayEnded: false,
-    loopRunning: false,   // guard against duplicate RAF
+    loopRunning: false,
     W: 0,
     H: 0,
     prevBulletLevel: 0,
@@ -99,7 +106,11 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     shakeAmount: 0,
     hitFlashTimer: 0,    // seconds
     lastFrameTime: 0,    // performance.now() of last RAF
-    evolveFlash: { timer: 0, label: '', hue: 190 }, // evolution flash
+    evolveFlash: { timer: 0, label: '', hue: 190 },
+    // demo AI state
+    demoStartTime: 0,    // performance.now()
+    demoWaypointIdx: 0,
+    demoElapsed: 0,      // seconds
   });
 
   const initBgStars = useCallback((w: number, h: number) => {
@@ -434,6 +445,172 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     ctx.fillStyle = hsl(225, 25, 12);
     ctx.fillRect(0, 0, w, h);
     drawBgStars(ctx, w, h, timestamp, dt);
+
+    // ── DEMO phase: AI-piloted preview ──────────────────
+    if (g.phase === 'demo') {
+      const DEMO_DUR = 8; // seconds
+      if (g.demoStartTime === 0) g.demoStartTime = timestamp;
+      g.demoElapsed = (timestamp - g.demoStartTime) / 1000;
+
+      // AI movement: smoothly navigate waypoints
+      const wp = DEMO_WAYPOINTS[g.demoWaypointIdx % DEMO_WAYPOINTS.length];
+      const targetX = wp[0] * w - g.player.w / 2;
+      const targetY = wp[1] * h - g.player.h / 2;
+      const dx = targetX - g.player.x;
+      const dy = targetY - g.player.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const lf = 1 - Math.pow(0.88, dt * 60);
+      g.player.x += dx * lf;
+      g.player.y += dy * lf;
+      if (dist < 18) g.demoWaypointIdx++;
+
+      // Clamp
+      g.player.x = Math.max(0, Math.min(w - g.player.w, g.player.x));
+      g.player.y = Math.max(h * 0.1, Math.min(h - g.player.h - 10, g.player.y));
+
+      // Spawn & update objects (same as playing)
+      const demoDiff = 1 + g.demoElapsed * 0.06;
+      const starI = Math.max(0.12, 0.3 - g.demoElapsed * 0.002);
+      const bombI = Math.max(0.06, 0.16 - g.demoElapsed * 0.002);
+      if (g.demoElapsed - g.lastStar > starI) {
+        g.objects.push({ x: rand(20, w-20), y: -20, type:'star', size:rand(10,16),
+          speed: rand(100,200)*demoDiff, rotation:rand(0,Math.PI*2),
+          vx:0, vy:0, sineAmp:0, sineFreq:0, originX:0, originY:0, age:0,
+          pattern:'straight', accelX:0, accelY:0, spiralR:0, spiralSpeed:0, spiralAngle:0 });
+        g.lastStar = g.demoElapsed;
+      }
+      if (g.demoElapsed - g.lastBomb > bombI) {
+        const bx = rand(20, w-20);
+        const patterns: BombPattern[] = ['straight','sine','zigzag','diagonal'];
+        const pat = patterns[Math.floor(Math.random()*patterns.length)];
+        let vx = 0, sineAmp = 0, sineFreq = 0;
+        if (pat==='sine')    { sineAmp=rand(40,100); sineFreq=rand(1.0,3.0); }
+        if (pat==='zigzag')  { vx=rand(-200,200); sineAmp=rand(20,50); sineFreq=rand(2,4); }
+        if (pat==='diagonal'){ vx=rand(-200,200); }
+        g.objects.push({ x:bx, y:-20, type:'bomb', size:rand(12,18),
+          speed:rand(100,220)*demoDiff, rotation:0,
+          vx, vy:0, sineAmp, sineFreq, originX:bx, originY:-20, age:0, pattern:pat,
+          accelX:0, accelY:0, spiralR:0, spiralSpeed:0, spiralAngle:0 });
+        g.lastBomb = g.demoElapsed;
+      }
+
+      // Auto-fire (demo)
+      const cfg = getBulletConfig(Math.min(Math.floor(g.demoElapsed / 2), 3));
+      if (g.demoElapsed - g.lastBullet > cfg.interval) {
+        const bc = cfg.interval < 0.14 ? 3 : cfg.interval < 0.18 ? 2 : 1;
+        const spread = bc > 1 ? 16 : 0;
+        for (let i = 0; i < bc; i++) {
+          g.bullets.push({ x: g.player.x + g.player.w/2 - cfg.w/2 + (i-(bc-1)/2)*spread,
+            y: g.player.y - cfg.h, w:cfg.w, h:cfg.h,
+            level: Math.min(Math.floor(g.demoElapsed/2),3), hue:cfg.color, trail:[] });
+        }
+        g.lastBullet = g.demoElapsed;
+        playShoot(0);
+      }
+
+      // Update bullets
+      g.bullets = g.bullets.filter(b => {
+        const c = getBulletConfig(b.level);
+        b.trail.push({ x: b.x+b.w/2, y: b.y+b.h/2 });
+        if (b.trail.length > 8) b.trail.shift();
+        b.y -= c.speed * dt;
+        return b.y + b.h > 0;
+      });
+
+      // Update objects (simplified — no player collision in demo)
+      g.objects = g.objects.filter(obj => {
+        obj.age += dt;
+        switch (obj.pattern) {
+          case 'sine':     obj.y+=obj.speed*dt; obj.x=obj.originX+Math.sin(obj.age*obj.sineFreq*Math.PI*2)*obj.sineAmp; break;
+          case 'zigzag':   obj.y+=obj.speed*dt; obj.x+=obj.vx*dt; break;
+          case 'diagonal': obj.y+=obj.speed*dt; obj.x+=obj.vx*dt; break;
+          default:         obj.y+=obj.speed*dt; break;
+        }
+        if (obj.x < 0) obj.x = 0; if (obj.x > w) obj.x = w;
+        if (obj.y > h + 30) return false;
+        // Bullet–bomb
+        if (obj.type === 'bomb') {
+          for (let i = g.bullets.length-1; i >= 0; i--) {
+            const b = g.bullets[i];
+            if (Math.sqrt((obj.x-b.x-b.w/2)**2+(obj.y-b.y-b.h/2)**2) < obj.size+b.w) {
+              spawnParticles(obj.x, obj.y, hsl(30,100,60), 10);
+              playBombDestroy();
+              g.bullets.splice(i,1);
+              return false;
+            }
+          }
+        }
+        return true;
+      });
+
+      g.particles = g.particles.filter(p => {
+        p.x+=p.vx*dt; p.y+=p.vy*dt;
+        p.vx*=Math.pow(0.98,dt*60); p.vy*=Math.pow(0.98,dt*60);
+        p.life-=dt; return p.life>0;
+      });
+
+      // Draw scene
+      g.bullets.forEach(b => drawBullet(ctx, b, timestamp));
+      g.objects.forEach(obj => obj.type==='star' ? drawStar(ctx,obj,timestamp) : drawBomb(ctx,obj,timestamp));
+      g.particles.forEach(p => {
+        const alpha = p.life/p.maxLife;
+        ctx.globalAlpha=alpha; ctx.fillStyle=p.color;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.size*(0.5+alpha*0.5),0,Math.PI*2); ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+      drawShip(ctx, g.player.x, g.player.y, g.player.w, g.player.h, timestamp, Math.min(Math.floor(g.demoElapsed/2),3));
+
+      // Dark overlay
+      ctx.fillStyle = hsl(225,30,5,0.45);
+      ctx.fillRect(0,0,w,h);
+
+      // Pulse ring
+      const ringR = 140 + Math.sin(timestamp*0.002)*20;
+      const ring = ctx.createRadialGradient(w/2,h/2,ringR*0.6,w/2,h/2,ringR);
+      ring.addColorStop(0,hsl(190,100,60,0));
+      ring.addColorStop(0.85,hsl(190,100,60,0.12));
+      ring.addColorStop(1,hsl(190,100,60,0));
+      ctx.fillStyle=ring; ctx.beginPath(); ctx.arc(w/2,h/2,ringR,0,Math.PI*2); ctx.fill();
+
+      // Title
+      ctx.save();
+      ctx.textAlign='center';
+      const titleScale = 1 + Math.sin(timestamp*0.0015)*0.03;
+      ctx.translate(w/2, h*0.28);
+      ctx.scale(titleScale,titleScale);
+      ctx.font='900 clamp(28px,6vw,64px) Orbitron,monospace';
+      ctx.shadowColor=hsl(190,100,60); ctx.shadowBlur=40;
+      ctx.fillStyle=hsl(190,100,90);
+      ctx.fillText('SPACE SHOOTER',0,0);
+      ctx.shadowBlur=0;
+      ctx.font='600 clamp(12px,2.5vw,22px) Orbitron,monospace';
+      ctx.fillStyle=hsl(190,100,70,0.8);
+      ctx.fillText('TAP ANYWHERE TO PLAY',0, Math.max(36, Math.min(5*h/100, 56)));
+      ctx.restore();
+
+      // How-to pills
+      const pills = ['🚀 Touch / Arrow Keys to move','⭐ Collect stars','💣 Dodge & shoot bombs'];
+      pills.forEach((txt,i)=>{
+        const py = h*0.72 + i * Math.max(30, Math.min(4*h/100, 46));
+        ctx.font=`500 clamp(11px,2vw,18px) Orbitron,monospace`;
+        ctx.textAlign='center';
+        const tw = ctx.measureText(txt).width;
+        ctx.fillStyle=hsl(225,30,10,0.7);
+        ctx.beginPath(); ctx.roundRect(w/2-tw/2-18,py-18,tw+36,30,15); ctx.fill();
+        ctx.fillStyle=hsl(190,80,80,0.9);
+        ctx.fillText(txt, w/2, py);
+      });
+
+      // Progress bar at bottom
+      const prog = Math.min(g.demoElapsed/DEMO_DUR,1);
+      ctx.fillStyle=hsl(225,30,15,0.6);
+      ctx.beginPath(); ctx.roundRect(w/2-100,h-28,200,8,4); ctx.fill();
+      ctx.fillStyle=hsl(190,100,60,0.8);
+      ctx.beginPath(); ctx.roundRect(w/2-100,h-28,200*prog,8,4); ctx.fill();
+
+      ctx.restore();
+      return;
+    }
 
     if (g.phase !== 'playing') { ctx.restore(); return; }
 
@@ -838,19 +1015,35 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     resize();
     window.addEventListener('resize', resize);
 
-    const onKD = (e: KeyboardEvent) => { e.preventDefault(); gs.current.keys.add(e.key); };
+    const onKD = (e: KeyboardEvent) => {
+      e.preventDefault();
+      // Any keypress during demo → skip to countdown
+      if (gs.current.phase === 'demo') { launchCountdown(); return; }
+      gs.current.keys.add(e.key);
+    };
     const onKU = (e: KeyboardEvent) => gs.current.keys.delete(e.key);
-    const onTS = (e: TouchEvent) => { gs.current.touchX = e.touches[0].clientX; gs.current.touchY = e.touches[0].clientY; };
-    const onTM = (e: TouchEvent) => { e.preventDefault(); gs.current.touchX = e.touches[0].clientX; gs.current.touchY = e.touches[0].clientY; };
+    const onTS = (e: TouchEvent) => {
+      if (gs.current.phase === 'demo') { launchCountdown(); return; }
+      gs.current.touchX = e.touches[0].clientX;
+      gs.current.touchY = e.touches[0].clientY;
+    };
+    const onTM = (e: TouchEvent) => {
+      e.preventDefault();
+      if (gs.current.phase === 'demo') return;
+      gs.current.touchX = e.touches[0].clientX;
+      gs.current.touchY = e.touches[0].clientY;
+    };
     const onTE = () => { gs.current.touchX = null; gs.current.touchY = null; };
+    const onClick = () => { if (gs.current.phase === 'demo') launchCountdown(); };
 
     window.addEventListener('keydown', onKD);
     window.addEventListener('keyup', onKU);
+    canvas.addEventListener('click', onClick);
     canvas.addEventListener('touchstart', onTS, { passive: false });
     canvas.addEventListener('touchmove', onTM, { passive: false });
     canvas.addEventListener('touchend', onTE);
 
-    // ── Single RAF loop — guarded by loopRunning ──
+    // ── Single RAF loop ──
     let rafId = 0;
     const loop = (ts: number) => {
       gameLoop(ctx, ts);
@@ -863,11 +1056,53 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       window.removeEventListener('resize', resize);
       window.removeEventListener('keydown', onKD);
       window.removeEventListener('keyup', onKU);
+      canvas.removeEventListener('click', onClick);
       canvas.removeEventListener('touchstart', onTS);
       canvas.removeEventListener('touchmove', onTM);
       canvas.removeEventListener('touchend', onTE);
     };
   }, [gameLoop, initBgStars]);
+
+  // ── Demo auto-end (8 s) ───────────────────────────
+  useEffect(() => {
+    if (phase !== 'demo') return;
+    const t = setTimeout(() => launchCountdown(), 8000);
+    return () => clearTimeout(t);
+  }, [phase]);
+
+  // ── Launch countdown & fully reset game state ─────
+  const launchCountdown = useCallback(() => {
+    const g = gs.current;
+    if (g.phase !== 'demo') return; // guard against double-call
+    // Hard-reset all game state so play starts fresh
+    g.phase          = 'countdown';
+    g.bullets        = [];
+    g.objects        = [];
+    g.particles      = [];
+    g.score          = 0;
+    g.lives          = MAX_LIVES;
+    g.startTime      = 0;
+    g.lastBullet     = 0;
+    g.lastStar       = 0;
+    g.lastBomb       = 0;
+    g.lastFrameTime  = 0;
+    g.prevBulletLevel = 0;
+    g.shakeAmount    = 0;
+    g.hitFlashTimer  = 0;
+    g.gameplayEnded  = false;
+    g.evolveFlash    = { timer: 0, label: '', hue: 190 };
+    g.demoStartTime  = 0;
+    g.demoElapsed    = 0;
+    g.demoWaypointIdx = 0;
+    g.player.x = g.W / 2 - 22;
+    g.player.y = g.H - 90;
+    setScore(0);
+    setLives(MAX_LIVES);
+    setElapsed(0);
+    setBulletLevel(0);
+    setCountdown(3);
+    setPhase('countdown');
+  }, []);
 
   // ── Countdown ─────────────────────────────────────
   useEffect(() => {
@@ -880,7 +1115,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       g.lastBullet     = 0;
       g.lastStar       = 0;
       g.lastBomb       = 0;
-      g.lastFrameTime  = 0;  // reset so first dt is clean
+      g.lastFrameTime  = 0;
       g.prevBulletLevel = 0;
       setPhase('playing');
       playCountdownGo();
@@ -901,39 +1136,9 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     return () => clearTimeout(t);
   }, [phase, onGameEnd]);
 
-  // ── Auto-start: show instructions then auto-countdown ──
-  useEffect(() => {
-    if (phase !== 'instructions') return;
-    const t = setTimeout(() => { setPhase('countdown'); setCountdown(3); }, 3000);
-    return () => clearTimeout(t);
-  }, [phase]);
-
-  const startGame = () => { setPhase('countdown'); setCountdown(3); };
-
   return (
     <div className="relative w-full h-screen overflow-hidden bg-game-bg select-none">
       <canvas ref={canvasRef} className="absolute inset-0" />
-
-      {/* Instructions */}
-      {phase === 'instructions' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-background/80 backdrop-blur-md px-6">
-          <h1 className="font-game text-3xl md:text-5xl text-primary text-glow mb-6 animate-pulse-glow">
-            SPACE SHOOTER
-          </h1>
-          <div className="max-w-md space-y-3 text-center font-game-body text-lg text-foreground/90">
-            <p className="text-accent text-glow-accent text-xl font-semibold">How to Play</p>
-            <p>🚀 Move with <span className="text-primary">Arrow Keys / WASD</span> or <span className="text-primary">Touch</span></p>
-            <p>🔫 Auto-fire — bullets <span className="text-secondary">evolve every 4s!</span></p>
-            <p>⭐ Collect <span className="text-accent">Stars</span> for points</p>
-            <p>💣 Avoid <span className="text-destructive">Bombs</span> — 2 lives!</p>
-            <p>🎯 Shoot bombs to destroy them</p>
-            <p className="text-muted-foreground text-sm">Difficulty increases over time</p>
-          </div>
-          <button onClick={startGame} className="mt-8 font-game text-lg px-8 py-3 rounded-lg bg-primary text-primary-foreground box-glow hover:brightness-110 transition-all animate-pulse-glow">
-            START GAME
-          </button>
-        </div>
-      )}
 
       {/* Countdown */}
       {phase === 'countdown' && (
