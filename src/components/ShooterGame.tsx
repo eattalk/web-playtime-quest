@@ -57,12 +57,20 @@ function getBulletConfig(level: number) {
 
 export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [phase, setPhase] = useState<GamePhase>('instructions');
+  const [phase, setPhase] = useState<GamePhase>('demo');
   const [countdown, setCountdown] = useState(3);
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(MAX_LIVES);
   const [elapsed, setElapsed] = useState(0);
   const [bulletLevel, setBulletLevel] = useState(0);
+  const [demoTimeLeft, setDemoTimeLeft] = useState(8);
+
+  // AI demo: target positions updated periodically
+  const demoAI = useRef({
+    targetX: 0,
+    targetY: 0,
+    nextMoveAt: 0, // seconds elapsed in demo
+  });
 
   const gs = useRef({
     player: { x: 0, y: 0, w: 44, h: 44 },
@@ -79,7 +87,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     keys: new Set<string>(),
     touchX: null as number | null,
     touchY: null as number | null,
-    phase: 'instructions' as GamePhase,
+    phase: 'demo' as GamePhase,
     maxTimeMs: maxTime * 1000,
     gameplayEnded: false,
     loopRunning: false,   // guard against duplicate RAF
@@ -91,6 +99,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     hitFlashTimer: 0,    // seconds
     lastFrameTime: 0,    // performance.now() of last RAF
     evolveFlash: { timer: 0, label: '', hue: 190 }, // evolution flash
+    demoStartTime: 0,    // performance.now() when demo started
   });
 
   const initBgStars = useCallback((w: number, h: number) => {
