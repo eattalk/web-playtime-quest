@@ -592,7 +592,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       // How-to pills
       const pills = ['🚀 Touch / Arrow Keys to move','⭐ Collect stars','💣 Dodge & shoot bombs'];
       pills.forEach((txt,i)=>{
-        const py = h*0.72 + i*clamp(30,4*h/100,46);
+        const py = h*0.72 + i * Math.max(30, Math.min(4*h/100, 46));
         ctx.font=`500 clamp(11px,2vw,18px) Orbitron,monospace`;
         ctx.textAlign='center';
         const tw = ctx.measureText(txt).width;
