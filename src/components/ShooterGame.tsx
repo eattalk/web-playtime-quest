@@ -27,7 +27,7 @@ interface FallingObj extends Vec2 {
 interface Particle extends Vec2 { vx: number; vy: number; life: number; maxLife: number; color: string; size: number; }
 interface BgStar extends Vec2 { size: number; brightness: number; speed: number; }  // speed px/s
 
-type GamePhase = 'instructions' | 'countdown' | 'playing' | 'gameover' | 'waiting' | 'done';
+type GamePhase = 'demo' | 'instructions' | 'countdown' | 'playing' | 'gameover' | 'waiting' | 'done';
 
 interface ShooterGameProps {
   gameType: string;
@@ -57,7 +57,7 @@ function getBulletConfig(level: number) {
 
 export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [phase, setPhase] = useState<GamePhase>('instructions');
+  const [phase, setPhase] = useState<GamePhase>('demo');
   const [countdown, setCountdown] = useState(3);
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(MAX_LIVES);
@@ -79,7 +79,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     keys: new Set<string>(),
     touchX: null as number | null,
     touchY: null as number | null,
-    phase: 'instructions' as GamePhase,
+    phase: 'demo' as GamePhase,
     maxTimeMs: maxTime * 1000,
     gameplayEnded: false,
     loopRunning: false,   // guard against duplicate RAF
@@ -91,6 +91,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     hitFlashTimer: 0,    // seconds
     lastFrameTime: 0,    // performance.now() of last RAF
     evolveFlash: { timer: 0, label: '', hue: 190 }, // evolution flash
+    demoAiTarget: { x: 0, y: 0 },                   // AI pilot target in demo
   });
 
   const initBgStars = useCallback((w: number, h: number) => {
@@ -426,7 +427,10 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     ctx.fillRect(0, 0, w, h);
     drawBgStars(ctx, w, h, timestamp, dt);
 
-    if (g.phase !== 'playing') { ctx.restore(); return; }
+    if (g.phase !== 'playing' && g.phase !== 'demo') { ctx.restore(); return; }
+
+    // Initialize demo startTime lazily
+    if (g.phase === 'demo' && g.startTime === 0) g.startTime = timestamp;
 
     const elapsedMs = timestamp - g.startTime;
     const elapsedSec = elapsedMs / 1000;
@@ -453,19 +457,47 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
 
     // ── Player movement ──
     if (gameplayActive) {
-      const spd = PLAYER_SPEED * dt;
-      if (g.keys.has('ArrowLeft') || g.keys.has('a')) g.player.x -= spd;
-      if (g.keys.has('ArrowRight') || g.keys.has('d')) g.player.x += spd;
-      if (g.keys.has('ArrowUp') || g.keys.has('w')) g.player.y -= spd;
-      if (g.keys.has('ArrowDown') || g.keys.has('s')) g.player.y += spd;
+      if (g.phase === 'demo') {
+        // ── AI pilot: seek nearest star, repel from bombs ──
+        let aiX = g.player.x + g.player.w / 2;
+        let aiY = h * 0.65;
+        let minDist = Infinity;
+        g.objects.forEach(obj => {
+          if (obj.type === 'star') {
+            const d = Math.hypot(obj.x - (g.player.x + g.player.w / 2), obj.y - (g.player.y + g.player.h / 2));
+            if (d < minDist) { minDist = d; aiX = obj.x; aiY = obj.y; }
+          }
+        });
+        g.objects.forEach(obj => {
+          if (obj.type === 'bomb') {
+            const d = Math.hypot(obj.x - (g.player.x + g.player.w / 2), obj.y - (g.player.y + g.player.h / 2));
+            if (d < 160) {
+              const repel = (160 - d) / 160 * 4;
+              aiX += (g.player.x + g.player.w / 2 - obj.x) * repel;
+              aiY += (g.player.y + g.player.h / 2 - obj.y) * repel;
+            }
+          }
+        });
+        g.demoAiTarget = { x: aiX, y: aiY };
+        const adx = g.demoAiTarget.x - (g.player.x + g.player.w / 2);
+        const ady = g.demoAiTarget.y - (g.player.y + g.player.h / 2);
+        const lerpAI = 1 - Math.pow(0.84, dt * 60);
+        g.player.x += adx * lerpAI;
+        g.player.y += ady * lerpAI;
+      } else {
+        const spd = PLAYER_SPEED * dt;
+        if (g.keys.has('ArrowLeft') || g.keys.has('a')) g.player.x -= spd;
+        if (g.keys.has('ArrowRight') || g.keys.has('d')) g.player.x += spd;
+        if (g.keys.has('ArrowUp') || g.keys.has('w')) g.player.y -= spd;
+        if (g.keys.has('ArrowDown') || g.keys.has('s')) g.player.y += spd;
 
-      if (g.touchX !== null && g.touchY !== null) {
-        const dx = g.touchX - (g.player.x + g.player.w / 2);
-        const dy = g.touchY - (g.player.y + g.player.h / 2);
-        // dt-based lerp: factor = 1 - (1-0.12)^(dt*60)
-        const lerpFactor = 1 - Math.pow(0.88, dt * 60);
-        g.player.x += dx * lerpFactor;
-        g.player.y += dy * lerpFactor;
+        if (g.touchX !== null && g.touchY !== null) {
+          const dx = g.touchX - (g.player.x + g.player.w / 2);
+          const dy = g.touchY - (g.player.y + g.player.h / 2);
+          const lerpFactor = 1 - Math.pow(0.88, dt * 60);
+          g.player.x += dx * lerpFactor;
+          g.player.y += dy * lerpFactor;
+        }
       }
 
       g.player.x = Math.max(0, Math.min(w - g.player.w, g.player.x));
@@ -557,7 +589,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       if (obj.x > w - 10)  { obj.x = w - 10; obj.vx = -Math.abs(obj.vx || 0); }
       if (obj.y > h + 30) return false;
 
-      if (gameplayActive) {
+      if (gameplayActive && g.phase === 'playing') {
         const dx = obj.x - pcx;
         const dy = obj.y - pcy;
         if (Math.sqrt(dx * dx + dy * dy) < pr + obj.size) {
@@ -575,6 +607,17 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
             g.hitFlashTimer  = 0.25; // seconds
             if (g.lives <= 0) g.gameplayEnded = true;
           }
+          return false;
+        }
+      }
+
+      // In demo: star collection (visual only, no score)
+      if (g.phase === 'demo') {
+        const dx = obj.x - pcx;
+        const dy = obj.y - pcy;
+        if (Math.sqrt(dx * dx + dy * dy) < pr + obj.size && obj.type === 'star') {
+          spawnParticles(obj.x, obj.y, hsl(45, 100, 70), 15);
+          playStarCollect();
           return false;
         }
       }
@@ -708,6 +751,32 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     ctx.restore();
   }, [drawBgStars, drawBullet, drawBomb, drawStar, drawShip, drawHUD, spawnParticles, onGameEnd]);
 
+  // ── startGame: reset state and begin countdown ──
+  const startGame = useCallback(() => {
+    const g = gs.current;
+    g.score = 0;
+    g.lives = MAX_LIVES;
+    g.objects = [];
+    g.bullets = [];
+    g.particles = [];
+    g.gameplayEnded = false;
+    g.prevBulletLevel = 0;
+    g.evolveFlash = { timer: 0, label: '', hue: 190 };
+    g.lastBullet = 0;
+    g.lastStar = 0;
+    g.lastBomb = 0;
+    g.lastFrameTime = 0;
+    g.startTime = 0;
+    g.shakeAmount = 0;
+    g.hitFlashTimer = 0;
+    g.phase = 'countdown';
+    setScore(0);
+    setLives(MAX_LIVES);
+    setBulletLevel(0);
+    setCountdown(3);
+    setPhase('countdown');
+  }, []);
+
   // ── Canvas & input setup ──────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -729,15 +798,22 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
 
     const onKD = (e: KeyboardEvent) => { e.preventDefault(); gs.current.keys.add(e.key); };
     const onKU = (e: KeyboardEvent) => gs.current.keys.delete(e.key);
-    const onTS = (e: TouchEvent) => { gs.current.touchX = e.touches[0].clientX; gs.current.touchY = e.touches[0].clientY; };
+    const onTS = (e: TouchEvent) => {
+      // Demo: tap anywhere → start game
+      if (gs.current.phase === 'demo') { startGame(); return; }
+      gs.current.touchX = e.touches[0].clientX;
+      gs.current.touchY = e.touches[0].clientY;
+    };
     const onTM = (e: TouchEvent) => { e.preventDefault(); gs.current.touchX = e.touches[0].clientX; gs.current.touchY = e.touches[0].clientY; };
     const onTE = () => { gs.current.touchX = null; gs.current.touchY = null; };
+    const onMouseDown = () => { if (gs.current.phase === 'demo') startGame(); };
 
     window.addEventListener('keydown', onKD);
     window.addEventListener('keyup', onKU);
     canvas.addEventListener('touchstart', onTS, { passive: false });
     canvas.addEventListener('touchmove', onTM, { passive: false });
     canvas.addEventListener('touchend', onTE);
+    canvas.addEventListener('mousedown', onMouseDown);
 
     // ── Single RAF loop — guarded by loopRunning ──
     let rafId = 0;
@@ -755,8 +831,9 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       canvas.removeEventListener('touchstart', onTS);
       canvas.removeEventListener('touchmove', onTM);
       canvas.removeEventListener('touchend', onTE);
+      canvas.removeEventListener('mousedown', onMouseDown);
     };
-  }, [gameLoop, initBgStars]);
+  }, [gameLoop, initBgStars, startGame]);
 
   // ── Countdown ─────────────────────────────────────
   useEffect(() => {
@@ -790,37 +867,42 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     return () => clearTimeout(t);
   }, [phase, onGameEnd]);
 
-  // ── Auto-start: show instructions then auto-countdown ──
+  // ── Demo: init startTime on mount ──
   useEffect(() => {
-    if (phase !== 'instructions') return;
-    const t = setTimeout(() => { setPhase('countdown'); setCountdown(3); }, 3000);
-    return () => clearTimeout(t);
+    if (phase !== 'demo') return;
+    const g = gs.current;
+    g.startTime = 0; // will be lazily set in game loop
   }, [phase]);
-
-  const startGame = () => { setPhase('countdown'); setCountdown(3); };
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-game-bg select-none">
       <canvas ref={canvasRef} className="absolute inset-0" />
 
-      {/* Instructions */}
-      {phase === 'instructions' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-background/80 backdrop-blur-md px-6">
-          <h1 className="font-game text-3xl md:text-5xl text-primary text-glow mb-6 animate-pulse-glow">
-            SPACE SHOOTER
-          </h1>
-          <div className="max-w-md space-y-3 text-center font-game-body text-lg text-foreground/90">
-            <p className="text-accent text-glow-accent text-xl font-semibold">How to Play</p>
-            <p>🚀 Move with <span className="text-primary">Arrow Keys / WASD</span> or <span className="text-primary">Touch</span></p>
-            <p>🔫 Auto-fire — bullets <span className="text-secondary">evolve every 4s!</span></p>
-            <p>⭐ Collect <span className="text-accent">Stars</span> for points</p>
-            <p>💣 Avoid <span className="text-destructive">Bombs</span> — 2 lives!</p>
-            <p>🎯 Shoot bombs to destroy them</p>
-            <p className="text-muted-foreground text-sm">Difficulty increases over time</p>
+      {/* Demo overlay */}
+      {phase === 'demo' && (
+        <div
+          className="absolute inset-0 z-10 flex flex-col items-center justify-end pb-16 cursor-pointer"
+          onClick={startGame}
+        >
+          {/* DEMO badge top-left */}
+          <div className="absolute top-4 left-4 font-game text-xs tracking-widest px-3 py-1 rounded border border-primary/40 text-primary/60 bg-background/30">
+            DEMO
           </div>
-          <button onClick={startGame} className="mt-8 font-game text-lg px-8 py-3 rounded-lg bg-primary text-primary-foreground box-glow hover:brightness-110 transition-all animate-pulse-glow">
-            START GAME
-          </button>
+
+          {/* Bottom CTA */}
+          <div className="flex flex-col items-center gap-3 animate-bounce">
+            <p
+              className="font-game text-4xl md:text-5xl text-primary"
+              style={{ textShadow: '0 0 30px hsl(190 100% 50% / 0.7), 0 0 60px hsl(190 100% 50% / 0.4)' }}
+            >
+              TAP TO PLAY
+            </p>
+            <div className="flex gap-2 mt-1">
+              <span className="w-2 h-2 rounded-full bg-primary/80 animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-primary/60 animate-pulse" style={{ animationDelay: '0.2s' }} />
+              <span className="w-2 h-2 rounded-full bg-primary/40 animate-pulse" style={{ animationDelay: '0.4s' }} />
+            </div>
+          </div>
         </div>
       )}
 
