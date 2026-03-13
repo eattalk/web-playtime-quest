@@ -13,16 +13,25 @@ const STAR_POINTS     = 10;
 // ── Types ────────────────────────────────────────────
 interface Vec2 { x: number; y: number; }
 interface Bullet extends Vec2 { w: number; h: number; level: number; hue: number; trail: Vec2[]; }
+type BombPattern = 'straight' | 'sine' | 'zigzag' | 'diagonal' | 'boomerang' | 'spiral' | 'homing' | 'burst';
 interface FallingObj extends Vec2 {
   type: 'star' | 'bomb';
   size: number;
   speed: number;   // px/s
   rotation: number;
   vx: number;      // px/s
+  vy: number;      // px/s (for diagonal/boomerang)
   sineAmp: number;
   sineFreq: number; // cycles/s
   originX: number;
+  originY: number;
   age: number;      // seconds
+  pattern: BombPattern;
+  accelX: number;   // px/s² (boomerang)
+  accelY: number;
+  spiralR: number;  // spiral radius
+  spiralSpeed: number; // rad/s
+  spiralAngle: number;
 }
 interface Particle extends Vec2 { vx: number; vy: number; life: number; maxLife: number; color: string; size: number; }
 interface BgStar extends Vec2 { size: number; brightness: number; speed: number; }  // speed px/s
