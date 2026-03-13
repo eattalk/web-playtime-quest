@@ -684,6 +684,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
           vx: 0, vy: 0, sineAmp: 0, sineFreq: 0,
           originX: 0, originY: 0, age: 0, pattern: 'straight',
           accelX: 0, accelY: 0, spiralR: 0, spiralSpeed: 0, spiralAngle: 0,
+          hp: 1, maxHp: 1,
         });
         g.lastStar = elapsedSec;
       }
