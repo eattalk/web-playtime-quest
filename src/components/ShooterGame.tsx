@@ -267,10 +267,13 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     ctx.save();
     ctx.translate(obj.x, obj.y);
     const s = obj.size;
+    const hpRatio = obj.maxHp > 1 ? obj.hp / obj.maxHp : 1;
     const pulse = 1 + Math.sin(t * 0.012) * 0.12;
+    // glow color shifts red→orange as HP decreases
+    const glowHue = hpRatio < 0.4 ? 20 : hpRatio < 0.7 ? 10 : 0;
     const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, s * 2.2 * pulse);
-    glow.addColorStop(0, hsl(0, 85, 55, 0.35));
-    glow.addColorStop(1, hsl(0, 85, 55, 0));
+    glow.addColorStop(0, hsl(glowHue, 85, 55, 0.35 + (1 - hpRatio) * 0.4));
+    glow.addColorStop(1, hsl(glowHue, 85, 55, 0));
     ctx.fillStyle = glow;
     ctx.beginPath();
     ctx.arc(0, 0, s * 2.2 * pulse, 0, Math.PI * 2);
@@ -297,6 +300,33 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     ctx.beginPath();
     ctx.arc(0, -s - 10, sparkSize, 0, Math.PI * 2);
     ctx.fill();
+
+    // HP bar (only for multi-hit bombs)
+    if (obj.maxHp > 1) {
+      const barW = s * 2.4;
+      const barH = 5;
+      const barY = s + 8;
+      // background
+      ctx.fillStyle = hsl(0, 0, 20, 0.7);
+      ctx.beginPath();
+      ctx.roundRect(-barW / 2, barY, barW, barH, 3);
+      ctx.fill();
+      // fill — green → yellow → red
+      const barColor = hpRatio > 0.6 ? hsl(120, 90, 50) : hpRatio > 0.3 ? hsl(45, 100, 55) : hsl(0, 100, 55);
+      ctx.fillStyle = barColor;
+      ctx.beginPath();
+      ctx.roundRect(-barW / 2, barY, barW * hpRatio, barH, 3);
+      ctx.fill();
+      // HP dots
+      for (let i = 0; i < obj.maxHp; i++) {
+        const dotX = -barW / 2 + (barW / obj.maxHp) * (i + 0.5);
+        ctx.fillStyle = i < obj.hp ? hsl(0, 0, 90, 0.6) : hsl(0, 0, 20, 0.4);
+        ctx.beginPath();
+        ctx.arc(dotX, barY + barH / 2, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
     ctx.restore();
   }, []);
 
@@ -983,15 +1013,11 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     if (!g.gameplayEnded && (elapsedMs >= GAME_DURATION || g.lives <= 0)) {
       g.gameplayEnded = true;
       playGameOver();
-      if (g.lives <= 0) {
-        setPhase('done');
-        g.phase = 'done';
-        onGameEnd(g.score);
-        ctx.restore();
-        return;
-      }
-      setPhase('waiting');
-      g.phase = 'waiting';
+      setPhase('done');
+      g.phase = 'done';
+      onGameEnd(g.score);
+      ctx.restore();
+      return;
     }
 
     if (elapsedMs >= g.maxTimeMs) {
