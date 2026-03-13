@@ -990,11 +990,10 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       ef.timer = Math.max(0, ef.timer - dt);
     }
 
-    // ── Phase transitions — die or time up → immediate result ──
-    if (!g.gameplayEnded && (g.lives <= 0 || elapsedMs >= GAME_DURATION || elapsedMs >= g.maxTimeMs)) {
+    // ── Phase transitions — timer only (death handled in collision above) ──
+    if (!g.gameplayEnded && (elapsedMs >= GAME_DURATION || elapsedMs >= g.maxTimeMs)) {
       g.gameplayEnded = true;
       g.phase = 'done';
-      // survival-time tiebreaker: add ms survived as fractional points
       const tiebreaker = Math.floor(elapsedMs % 1000);
       playGameOver();
       setPhase('done');
@@ -1002,8 +1001,6 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       onGameEnd(g.score * 1000 + tiebreaker);
       return;
     }
-
-    ctx.restore();
   }, [drawBgStars, drawBullet, drawBomb, drawStar, drawShip, drawHUD, spawnParticles, onGameEnd]);
 
   // ── Stable ref for gameLoop to avoid RAF restarts ──
