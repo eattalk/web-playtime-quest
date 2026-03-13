@@ -1015,12 +1015,15 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     if (!ctx) return;
 
     const resize = () => {
-      canvas.width  = window.innerWidth;
-      canvas.height = window.innerHeight;
+      // Use container size (tablet landscape 1200×800 target)
+      canvas.width  = canvas.parentElement?.clientWidth  ?? window.innerWidth;
+      canvas.height = canvas.parentElement?.clientHeight ?? window.innerHeight;
       gs.current.W  = canvas.width;
       gs.current.H  = canvas.height;
-      gs.current.player.x = canvas.width / 2 - 22;
-      gs.current.player.y = canvas.height - 90;
+      const pw = gs.current.player.w;
+      const ph = gs.current.player.h;
+      gs.current.player.x = canvas.width / 2 - pw / 2;
+      gs.current.player.y = canvas.height - 100;
       if (gs.current.bgStars.length === 0) initBgStars(canvas.width, canvas.height);
     };
     resize();
