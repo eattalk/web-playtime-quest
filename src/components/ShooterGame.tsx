@@ -83,7 +83,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
   const [bulletLevel, setBulletLevel] = useState(0);
 
   const gs = useRef({
-    player: { x: 0, y: 0, w: 44, h: 44 },
+    player: { x: 0, y: 0, w: 56, h: 56 },
     bullets:   [] as Bullet[],
     objects:   [] as FallingObj[],
     particles: [] as Particle[],
