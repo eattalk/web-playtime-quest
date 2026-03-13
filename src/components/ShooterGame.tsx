@@ -610,6 +610,8 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     }
 
     if (g.phase !== 'playing') { ctx.restore(); return; }
+    // Once gameplay ended, freeze immediately — no more updates or level-ups
+    if (g.gameplayEnded) { ctx.restore(); return; }
 
     const elapsedMs = timestamp - g.startTime;
     const elapsedSec = elapsedMs / 1000;
