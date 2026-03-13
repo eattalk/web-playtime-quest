@@ -427,7 +427,10 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     ctx.fillRect(0, 0, w, h);
     drawBgStars(ctx, w, h, timestamp, dt);
 
-    if (g.phase !== 'playing') { ctx.restore(); return; }
+    if (g.phase !== 'playing' && g.phase !== 'demo') { ctx.restore(); return; }
+
+    // Initialize demo startTime lazily
+    if (g.phase === 'demo' && g.startTime === 0) g.startTime = timestamp;
 
     const elapsedMs = timestamp - g.startTime;
     const elapsedSec = elapsedMs / 1000;
