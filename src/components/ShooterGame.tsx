@@ -435,6 +435,162 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     ctx.fillRect(0, 0, w, h);
     drawBgStars(ctx, w, h, timestamp, dt);
 
+    // ── Demo phase: AI pilots the ship ──
+    if (g.phase === 'demo') {
+      const demoElapsedMs = timestamp - g.demoStartTime;
+      const demoElapsedSec = demoElapsedMs / 1000;
+      const ai = demoAI.current;
+
+      // Move AI target every ~0.8s toward nearest star or random position
+      if (demoElapsedSec > ai.nextMoveAt) {
+        ai.nextMoveAt = demoElapsedSec + 0.6 + Math.random() * 0.5;
+        const stars = g.objects.filter(o => o.type === 'star');
+        if (stars.length > 0) {
+          // Target closest star
+          const closest = stars.reduce((a, b) =>
+            Math.abs(a.x - (g.player.x + g.player.w / 2)) < Math.abs(b.x - (g.player.x + g.player.w / 2)) ? a : b
+          );
+          ai.targetX = closest.x - g.player.w / 2;
+          ai.targetY = closest.y - g.player.h / 2;
+        } else {
+          // Wander around avoiding edges
+          ai.targetX = g.W * 0.1 + Math.random() * g.W * 0.8 - g.player.w / 2;
+          ai.targetY = g.H * 0.3 + Math.random() * g.H * 0.5 - g.player.h / 2;
+        }
+        // Dodge bombs: move away from nearest bomb
+        const bombs = g.objects.filter(o => o.type === 'bomb' && o.y < g.player.y + 80);
+        if (bombs.length > 0) {
+          const nearest = bombs.reduce((a, b) => {
+            const da = Math.hypot(a.x - (g.player.x + g.player.w / 2), a.y - (g.player.y + g.player.h / 2));
+            const db = Math.hypot(b.x - (g.player.x + g.player.w / 2), b.y - (g.player.y + g.player.h / 2));
+            return da < db ? a : b;
+          });
+          const distToBomb = Math.hypot(nearest.x - (g.player.x + g.player.w / 2), nearest.y - (g.player.y + g.player.h / 2));
+          if (distToBomb < 120) {
+            // Evade: move opposite direction
+            ai.targetX = g.player.x + (g.player.x + g.player.w / 2 - nearest.x) * 2;
+            ai.targetY = Math.min(g.H * 0.7, g.player.y + 40);
+            ai.targetX = Math.max(0, Math.min(g.W - g.player.w, ai.targetX));
+          }
+        }
+      }
+
+      // Smooth follow
+      const lerpFactor = 1 - Math.pow(0.85, dt * 60);
+      g.player.x += (ai.targetX - g.player.x) * lerpFactor;
+      g.player.y += (ai.targetY - g.player.y) * lerpFactor;
+      g.player.x = Math.max(0, Math.min(g.W - g.player.w, g.player.x));
+      g.player.y = Math.max(g.H * 0.2, Math.min(g.H - g.player.h - 10, g.player.y));
+
+      const bLevel = Math.min(Math.floor(demoElapsedMs / 4_000), 7);
+      const demoCfg = getBulletConfig(bLevel);
+      const timeSinceLastBullet = demoElapsedSec - g.lastBullet;
+      if (timeSinceLastBullet > demoCfg.interval) {
+        const bulletCount = bLevel >= 5 ? 4 : bLevel >= 3 ? 3 : bLevel >= 1 ? 2 : 1;
+        const spread = bLevel >= 1 ? 14 + bLevel * 2 : 0;
+        for (let i = 0; i < bulletCount; i++) {
+          const offsetX = bulletCount === 1 ? 0 : (i - (bulletCount - 1) / 2) * spread;
+          g.bullets.push({
+            x: g.player.x + g.player.w / 2 - demoCfg.w / 2 + offsetX,
+            y: g.player.y - demoCfg.h,
+            w: demoCfg.w, h: demoCfg.h,
+            level: bLevel, hue: demoCfg.color, trail: [],
+          });
+        }
+        g.lastBullet = demoElapsedSec;
+        playShoot(bLevel);
+      }
+
+      // Level up flash during demo
+      if (bLevel > g.prevBulletLevel && bLevel <= 7) {
+        g.prevBulletLevel = bLevel;
+        setBulletLevel(bLevel);
+        const cfg = getBulletConfig(bLevel);
+        for (let i = 0; i < 20; i++) spawnParticles(rand(0, g.W), rand(0, g.H), hsl(cfg.color, 100, 70), 3);
+        const labels = ['EAGLE EVOLVED!', 'RAPID FIRE!', 'PLASMA MODE!', 'NOVA BURST!', 'SOLAR FLARE!', 'INFERNO!', 'MACHINEGUN!', 'GOD MODE!!!'];
+        g.evolveFlash = { timer: 1.6, label: labels[bLevel] ?? 'EVOLVED!', hue: cfg.color };
+      }
+
+      // Spawn stars/bombs (simplified)
+      const demoDiff = 1 + (demoElapsedMs / 8000) * 1.5;
+      const demoStarInterval = Math.max(0.12, 0.3 - demoElapsedMs * 0.000003);
+      if (demoElapsedSec - g.lastStar > demoStarInterval) {
+        g.objects.push({ x: rand(20, g.W - 20), y: -20, type: 'star', size: rand(10, 16), speed: rand(120, 200) * demoDiff, rotation: rand(0, Math.PI * 2), vx: 0, sineAmp: 0, sineFreq: 0, originX: 0, age: 0 });
+        g.lastStar = demoElapsedSec;
+      }
+      const demoBombInterval = Math.max(0.06, 0.18 - demoElapsedMs * 0.000003);
+      if (demoElapsedSec - g.lastBomb > demoBombInterval) {
+        const bx = rand(20, g.W - 20);
+        g.objects.push({ x: bx, y: -20, type: 'bomb', size: rand(12, 18), speed: rand(120, 240) * demoDiff, rotation: 0, vx: rand(-80, 80), sineAmp: rand(20, 60), sineFreq: rand(1.2, 3.0), originX: bx, age: 0 });
+        g.lastBomb = demoElapsedSec;
+      }
+
+      // Update bullets
+      g.bullets = g.bullets.filter(b => { const c = getBulletConfig(b.level); b.trail.push({ x: b.x + b.w / 2, y: b.y + b.h / 2 }); if (b.trail.length > 8) b.trail.shift(); b.y -= c.speed * dt; return b.y + b.h > 0; });
+
+      // Update objects (no player collision in demo)
+      g.objects = g.objects.filter(obj => {
+        obj.age += dt; obj.y += obj.speed * dt;
+        if (obj.vx) obj.x = obj.x + obj.vx * dt;
+        if (obj.sineAmp) obj.x = obj.originX + Math.sin(obj.age * obj.sineFreq * Math.PI * 2) * obj.sineAmp;
+        if (obj.x < 10) { obj.x = 10; obj.vx = Math.abs(obj.vx || 0); }
+        if (obj.x > g.W - 10) { obj.x = g.W - 10; obj.vx = -Math.abs(obj.vx || 0); }
+        if (obj.y > g.H + 30) return false;
+        // Bullet–bomb collision
+        if (obj.type === 'bomb') {
+          for (let i = g.bullets.length - 1; i >= 0; i--) {
+            const b = g.bullets[i];
+            if (Math.sqrt((obj.x - (b.x + b.w / 2)) ** 2 + (obj.y - (b.y + b.h / 2)) ** 2) < obj.size + b.w) {
+              spawnParticles(obj.x, obj.y, hsl(30, 100, 60), 12);
+              playBombDestroy();
+              g.bullets.splice(i, 1);
+              return false;
+            }
+          }
+        }
+        // Collect stars
+        if (obj.type === 'star') {
+          const pcx = g.player.x + g.player.w / 2; const pcy = g.player.y + g.player.h / 2;
+          if (Math.hypot(obj.x - pcx, obj.y - pcy) < g.player.w * 0.38 + obj.size) {
+            spawnParticles(obj.x, obj.y, hsl(45, 100, 70), 15);
+            playStarCollect();
+            return false;
+          }
+        }
+        return true;
+      });
+
+      // Update particles
+      g.particles = g.particles.filter(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= Math.pow(0.98, dt * 60); p.vy *= Math.pow(0.98, dt * 60); p.life -= dt; return p.life > 0; });
+
+      // Draw bullets, objects, particles, ship, HUD
+      g.bullets.forEach(b => drawBullet(ctx, b, timestamp));
+      g.objects.forEach(obj => obj.type === 'star' ? drawStar(ctx, obj, timestamp) : drawBomb(ctx, obj, timestamp));
+      g.particles.forEach(p => { const alpha = p.life / p.maxLife; ctx.globalAlpha = alpha; ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (0.5 + alpha * 0.5), 0, Math.PI * 2); ctx.fill(); });
+      ctx.globalAlpha = 1;
+      drawShip(ctx, g.player.x, g.player.y, g.player.w, g.player.h, timestamp, bLevel);
+      drawHUD(ctx, g.W, g.score, MAX_LIVES, demoElapsedMs, bLevel);
+
+      // Evolve flash
+      if (g.evolveFlash.timer > 0) {
+        const ef = g.evolveFlash;
+        const progress = ef.timer / 1.6;
+        const scale = progress > 0.75 ? 0.5 + (1 - progress) / 0.25 * 0.65 : 1.15;
+        const alpha = progress > 0.2 ? 1 : progress / 0.2;
+        ctx.save(); ctx.globalAlpha = alpha; ctx.translate(g.W / 2, g.H * 0.42); ctx.scale(scale, scale);
+        const grd = ctx.createRadialGradient(0, 0, 0, 0, 0, 220);
+        grd.addColorStop(0, hsl(ef.hue, 100, 50, 0.28 * alpha)); grd.addColorStop(1, hsl(ef.hue, 100, 50, 0));
+        ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(0, 0, 220, 0, Math.PI * 2); ctx.fill();
+        ctx.font = '700 22px Orbitron, monospace'; ctx.textAlign = 'center'; ctx.fillStyle = hsl(ef.hue, 100, 85, alpha); ctx.fillText('LEVEL UP', 0, -36);
+        ctx.font = '900 52px Orbitron, monospace'; ctx.fillStyle = hsl(ef.hue, 100, 95, alpha); ctx.shadowColor = hsl(ef.hue, 100, 60); ctx.shadowBlur = 30; ctx.fillText(ef.label, 0, 18); ctx.shadowBlur = 0;
+        ctx.restore();
+        ef.timer = Math.max(0, ef.timer - dt);
+      }
+
+      ctx.restore();
+      return;
+    }
+
     if (g.phase !== 'playing') { ctx.restore(); return; }
 
     const elapsedMs = timestamp - g.startTime;
