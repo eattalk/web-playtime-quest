@@ -685,29 +685,35 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
         g.lastStar = elapsedSec;
       }
 
-      // Spawn bombs — intervals in seconds (more frequent, harder)
-      const bombInterval = Math.max(0.018, 0.10 - elapsedMs * 0.000003);
+      // Spawn bombs — intervals in seconds
+      const bombInterval = Math.max(0.015, 0.09 - elapsedMs * 0.000003);
       const timeSinceLastBomb = elapsedSec - g.lastBomb;
       if (timeSinceLastBomb > bombInterval) {
-        // How many bombs per burst (scales with difficulty)
-        const burstCount = elapsedMs > 20000 ? rand(1,3) < 2 ? 2 : 1 :
-                           elapsedMs > 10000 ? (Math.random() < 0.3 ? 2 : 1) : 1;
+        const diffRatio = elapsedMs / GAME_DURATION; // 0→1
+        const burstCount = elapsedMs > 20000 ? (Math.random() < 0.5 ? 3 : 2) :
+                           elapsedMs > 10000 ? (Math.random() < 0.45 ? 2 : 1) : 1;
+
         for (let b = 0; b < burstCount; b++) {
-          const bx = rand(20, w - 20);
+          // 40% chance to aim directly at player — punishes standing still
+          const targeted = Math.random() < 0.40;
+          const bx = targeted
+            ? g.player.x + g.player.w / 2 + rand(-30, 30)
+            : rand(20, w - 20);
           const by = b === 0 ? -20 : rand(-60, -20);
-          const spd = rand(140, 310) * difficultyMult;
+          const spd = rand(160, 340) * difficultyMult;
 
           // Pick pattern weighted by difficulty
           const roll = Math.random();
-          const diffRatio = elapsedMs / GAME_DURATION; // 0→1
           let pattern: BombPattern;
-          if (roll < 0.15)                          pattern = 'straight';
-          else if (roll < 0.30)                     pattern = 'sine';
-          else if (roll < 0.44)                     pattern = 'zigzag';
-          else if (roll < 0.56)                     pattern = 'diagonal';
-          else if (roll < 0.67 && diffRatio > 0.2)  pattern = 'boomerang';
-          else if (roll < 0.78 && diffRatio > 0.35) pattern = 'spiral';
-          else if (roll < 0.89 && diffRatio > 0.5)  pattern = 'homing';
+          if (targeted && diffRatio > 0.3)           pattern = 'homing';
+          else if (targeted)                         pattern = 'straight';
+          else if (roll < 0.12)                      pattern = 'straight';
+          else if (roll < 0.27)                      pattern = 'sine';
+          else if (roll < 0.41)                      pattern = 'zigzag';
+          else if (roll < 0.54)                      pattern = 'diagonal';
+          else if (roll < 0.65 && diffRatio > 0.15) pattern = 'boomerang';
+          else if (roll < 0.77 && diffRatio > 0.30) pattern = 'spiral';
+          else if (roll < 0.90 && diffRatio > 0.45) pattern = 'homing';
           else                                       pattern = 'sine';
 
           let vx = 0, vy = 0, sineAmp = 0, sineFreq = 0;
@@ -728,11 +734,10 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
               break;
             case 'diagonal':
               vx = rand(-240, 240);
-              vy = 0; // speed already handles downward
               break;
             case 'boomerang':
               vx = rand(-280, 280);
-              accelX = -vx * rand(1.2, 2.2); // decelerates and reverses
+              accelX = -vx * rand(1.2, 2.2);
               break;
             case 'spiral':
               spiralR = rand(50, 130);
@@ -740,8 +745,8 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
               spiralAngle = rand(0, Math.PI * 2);
               break;
             case 'homing':
-              // Mild tracking — handled in update
-              vx = (g.player.x + g.player.w / 2 - bx) * rand(0.4, 0.9);
+              // Stronger initial aim toward player
+              vx = (g.player.x + g.player.w / 2 - bx) * rand(0.8, 1.4);
               break;
           }
 
