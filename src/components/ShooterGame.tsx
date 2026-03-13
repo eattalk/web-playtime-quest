@@ -698,8 +698,8 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
                            elapsedMs > 10000 ? (Math.random() < 0.45 ? 2 : 1) : 1;
 
         for (let b = 0; b < burstCount; b++) {
-          // 40% chance to aim directly at player — punishes standing still
-          const targeted = Math.random() < 0.40;
+          // 65% chance to aim directly at player — punishes standing still
+          const targeted = Math.random() < 0.65;
           const bx = targeted
             ? g.player.x + g.player.w / 2 + rand(-30, 30)
             : rand(20, w - 20);
