@@ -586,7 +586,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       ctx.shadowBlur=0;
       ctx.font='600 clamp(12px,2.5vw,22px) Orbitron,monospace';
       ctx.fillStyle=hsl(190,100,70,0.8);
-      ctx.fillText('TAP ANYWHERE TO PLAY',0,clamp(36,5*h/100,56));
+      ctx.fillText('TAP ANYWHERE TO PLAY',0, Math.max(36, Math.min(5*h/100, 56)));
       ctx.restore();
 
       // How-to pills
