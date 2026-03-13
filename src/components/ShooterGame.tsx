@@ -751,6 +751,32 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
     ctx.restore();
   }, [drawBgStars, drawBullet, drawBomb, drawStar, drawShip, drawHUD, spawnParticles, onGameEnd]);
 
+  // ── startGame: reset state and begin countdown ──
+  const startGame = useCallback(() => {
+    const g = gs.current;
+    g.score = 0;
+    g.lives = MAX_LIVES;
+    g.objects = [];
+    g.bullets = [];
+    g.particles = [];
+    g.gameplayEnded = false;
+    g.prevBulletLevel = 0;
+    g.evolveFlash = { timer: 0, label: '', hue: 190 };
+    g.lastBullet = 0;
+    g.lastStar = 0;
+    g.lastBomb = 0;
+    g.lastFrameTime = 0;
+    g.startTime = 0;
+    g.shakeAmount = 0;
+    g.hitFlashTimer = 0;
+    g.phase = 'countdown';
+    setScore(0);
+    setLives(MAX_LIVES);
+    setBulletLevel(0);
+    setCountdown(3);
+    setPhase('countdown');
+  }, []);
+
   // ── Canvas & input setup ──────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current;
