@@ -589,7 +589,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       if (obj.x > w - 10)  { obj.x = w - 10; obj.vx = -Math.abs(obj.vx || 0); }
       if (obj.y > h + 30) return false;
 
-      if (gameplayActive) {
+      if (gameplayActive && g.phase === 'playing') {
         const dx = obj.x - pcx;
         const dy = obj.y - pcy;
         if (Math.sqrt(dx * dx + dy * dy) < pr + obj.size) {
@@ -607,6 +607,17 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
             g.hitFlashTimer  = 0.25; // seconds
             if (g.lives <= 0) g.gameplayEnded = true;
           }
+          return false;
+        }
+      }
+
+      // In demo: star collection (visual only, no score)
+      if (g.phase === 'demo') {
+        const dx = obj.x - pcx;
+        const dy = obj.y - pcy;
+        if (Math.sqrt(dx * dx + dy * dy) < pr + obj.size && obj.type === 'star') {
+          spawnParticles(obj.x, obj.y, hsl(45, 100, 70), 15);
+          playStarCollect();
           return false;
         }
       }
