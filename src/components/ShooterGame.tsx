@@ -868,19 +868,25 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
         }
       }
 
-      // Bullet–bomb collision
+      // Bullet–bomb collision — HP system (3 hits to destroy)
       if (obj.type === 'bomb') {
         for (let i = g.bullets.length - 1; i >= 0; i--) {
           const b  = g.bullets[i];
           const bx = b.x + b.w / 2;
           const by = b.y + b.h / 2;
           if (Math.sqrt((obj.x - bx) ** 2 + (obj.y - by) ** 2) < obj.size + b.w) {
-            g.score += 5;
-            setScore(g.score);
-            spawnParticles(obj.x, obj.y, hsl(30, 100, 60), 12);
-            playBombDestroy();
+            obj.hp--;
             g.bullets.splice(i, 1);
-            return false;
+            if (obj.hp <= 0) {
+              g.score += 5;
+              setScore(g.score);
+              spawnParticles(obj.x, obj.y, hsl(30, 100, 60), 12);
+              playBombDestroy();
+              return false;
+            }
+            // Hit but not destroyed — flash particles
+            spawnParticles(obj.x, obj.y, hsl(30, 80, 60), 4);
+            break; // one bullet per frame
           }
         }
       }
