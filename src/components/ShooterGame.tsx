@@ -1137,6 +1137,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
       g.prevBulletLevel = 0;
       setPhase('playing');
       playCountdownGo();
+      startGameBGM();   // 🎵 game music starts
       return;
     }
     playCountdown();
@@ -1144,7 +1145,13 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     return () => clearTimeout(t);
   }, [phase, countdown]);
 
-  // ── Waiting phase removed — game ends immediately ──
+  // ── Stop BGM when game ends ────────────────────────
+  useEffect(() => {
+    if (phase === 'done') stopBGM(1.5);
+  }, [phase]);
+
+  // cleanup on unmount
+  useEffect(() => () => stopBGM(0.3), []);
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-game-bg select-none">
