@@ -1081,10 +1081,10 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
 
   // ── Demo auto-end (8 s) ───────────────────────────
   useEffect(() => {
-    if (phase !== 'demo') return;
+    if (phase !== 'demo' || demoOnly) return;
     const t = setTimeout(() => launchCountdown(), 8000);
     return () => clearTimeout(t);
-  }, [phase]);
+  }, [phase, demoOnly]);
 
   // ── Launch countdown & fully reset game state ─────
   const launchCountdown = useCallback(() => {
