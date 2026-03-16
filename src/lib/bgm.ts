@@ -6,16 +6,34 @@ let audioCtx: AudioContext | null = null;
 let masterGain: GainNode | null = null;
 let stopFns: Array<() => void> = [];
 let currentMode: string | null = null;
+let pendingMode: string | null = null;
 
 function getCtx() {
   if (!audioCtx) {
-    audioCtx = new AudioContext();
+    audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     masterGain = audioCtx.createGain();
     masterGain.gain.setValueAtTime(0.38, audioCtx.currentTime);
     masterGain.connect(audioCtx.destination);
   }
   if (audioCtx.state === 'suspended') audioCtx.resume();
   return { ctx: audioCtx, master: masterGain! };
+}
+
+// ── Unlock audio on first user gesture (required for mobile browsers) ─────
+export function unlockAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.setValueAtTime(0.38, audioCtx.currentTime);
+    masterGain.connect(audioCtx.destination);
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume().then(() => {
+      // If a mode was queued before unlock, start it now
+      if (pendingMode === 'intro') { pendingMode = null; startIntroBGM(); }
+      else if (pendingMode === 'play') { pendingMode = null; startGameBGM(); }
+    });
+  }
 }
 
 function stopAll() {
