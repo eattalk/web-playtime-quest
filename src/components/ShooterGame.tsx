@@ -100,6 +100,8 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     keys: new Set<string>(),
     touchX: null as number | null,
     touchY: null as number | null,
+    touchAnchorX: null as number | null,
+    touchAnchorY: null as number | null,
     phase: (skipDemo ? 'countdown' : 'demo') as GamePhase,
     maxTimeMs: maxTime * 1000,
     gameplayEnded: false,
@@ -648,18 +650,15 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
       if (g.keys.has('ArrowUp') || g.keys.has('w')) g.player.y -= spd;
       if (g.keys.has('ArrowDown') || g.keys.has('s')) g.player.y += spd;
 
-      if (g.touchX !== null && g.touchY !== null) {
-        const canvas = canvasRef.current;
-        const rect = canvas?.getBoundingClientRect();
-        const touchCanvasX = rect ? (g.touchX - rect.left) * (canvas!.width / rect.width) : g.touchX;
-        const touchCanvasY = rect ? (g.touchY - rect.top) * (canvas!.height / rect.height) : g.touchY;
-        const cx = g.player.x + g.player.w / 2;
-        const cy = g.player.y + g.player.h / 2;
-        const dx = touchCanvasX - cx;
-        const dy = touchCanvasY - cy;
+      if (g.touchX !== null && g.touchY !== null && g.touchAnchorX !== null && g.touchAnchorY !== null) {
+        const dx = g.touchX - g.touchAnchorX;
+        const dy = g.touchY - g.touchAnchorY;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist > 4) {
-          const move = Math.min(PLAYER_SPEED * dt, dist);
+        const DEAD_ZONE = 8;
+        if (dist > DEAD_ZONE) {
+          // Speed scales with drag distance, capped at PLAYER_SPEED
+          const intensity = Math.min(dist / 60, 1);
+          const move = PLAYER_SPEED * intensity * dt;
           g.player.x += (dx / dist) * move;
           g.player.y += (dy / dist) * move;
         }
@@ -1048,17 +1047,27 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     };
     const onKU = (e: KeyboardEvent) => gs.current.keys.delete(e.key);
     const onTS = (e: TouchEvent) => {
+      e.preventDefault();
       if (gs.current.phase === 'demo') { launchCountdown(); return; }
+      // 드래그 기준점 설정
+      gs.current.touchAnchorX = e.touches[0].clientX;
+      gs.current.touchAnchorY = e.touches[0].clientY;
       gs.current.touchX = e.touches[0].clientX;
       gs.current.touchY = e.touches[0].clientY;
     };
     const onTM = (e: TouchEvent) => {
       e.preventDefault();
       if (gs.current.phase === 'demo') return;
+      // 현재 위치만 업데이트 (기준점은 유지)
       gs.current.touchX = e.touches[0].clientX;
       gs.current.touchY = e.touches[0].clientY;
     };
-    const onTE = () => { gs.current.touchX = null; gs.current.touchY = null; };
+    const onTE = () => {
+      gs.current.touchX = null;
+      gs.current.touchY = null;
+      gs.current.touchAnchorX = null;
+      gs.current.touchAnchorY = null;
+    };
     const onClick = () => { if (gs.current.phase === 'demo') launchCountdown(); };
 
     window.addEventListener('keydown', onKD);
