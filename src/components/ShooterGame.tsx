@@ -593,18 +593,20 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
       ctx.fillText('TAP ANYWHERE TO PLAY',0, Math.max(36, Math.min(5*h/100, 56)));
       ctx.restore();
 
-      // Tap to start — pulsing
-      const tapAlpha = 0.6 + Math.sin(timestamp * 0.004) * 0.4;
-      ctx.font = `700 clamp(14px,3vw,26px) Orbitron,monospace`;
-      ctx.textAlign = 'center';
-      const tapTxt = '👆 TAP TO START';
-      const tapTw = ctx.measureText(tapTxt).width;
-      ctx.fillStyle = hsl(225,30,10,0.65);
-      ctx.beginPath(); ctx.roundRect(w/2-tapTw/2-24, h*0.88-22, tapTw+48, 38, 19); ctx.fill();
-      ctx.fillStyle = hsl(190,100,80,tapAlpha);
-      ctx.shadowColor = hsl(190,100,60); ctx.shadowBlur = 18;
-      ctx.fillText(tapTxt, w/2, h*0.88);
-      ctx.shadowBlur = 0;
+      // Tap to start — pulsing (hidden in demoOnly mode)
+      if (!demoOnly) {
+        const tapAlpha = 0.6 + Math.sin(timestamp * 0.004) * 0.4;
+        ctx.font = `700 clamp(14px,3vw,26px) Orbitron,monospace`;
+        ctx.textAlign = 'center';
+        const tapTxt = '👆 TAP TO START';
+        const tapTw = ctx.measureText(tapTxt).width;
+        ctx.fillStyle = hsl(225,30,10,0.65);
+        ctx.beginPath(); ctx.roundRect(w/2-tapTw/2-24, h*0.88-22, tapTw+48, 38, 19); ctx.fill();
+        ctx.fillStyle = hsl(190,100,80,tapAlpha);
+        ctx.shadowColor = hsl(190,100,60); ctx.shadowBlur = 18;
+        ctx.fillText(tapTxt, w/2, h*0.88);
+        ctx.shadowBlur = 0;
+      }
 
       ctx.restore();
       return;
