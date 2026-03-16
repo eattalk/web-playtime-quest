@@ -9,26 +9,23 @@ const Index = () => {
   const navigate = useNavigate();
   const [counter, setCounter] = useState(COUNTDOWN_SEC);
 
-  const startGame = () => {
-    stopBGM(0.4);
-    navigate('/webview/games/shooter?table_name=demo&skip_demo=1');
-  };
-
-  // Start intro BGM on mount
+  // Start intro BGM on mount (desktop), unlock + start on first tap (mobile)
   useEffect(() => {
     startIntroBGM();
     return () => stopBGM(0.4);
   }, []);
 
-  // Countdown then auto-navigate
-  useEffect(() => {
-    if (counter <= 0) { startGame(); return; }
-    const t = setTimeout(() => setCounter(c => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [counter]);
+  const startGame = () => {
+    stopBGM(0.4);
+    navigate('/webview/games/shooter?table_name=demo&skip_demo=1');
+  };
 
-  // Also allow tap anywhere on the overlay
-  const handleTap = () => startGame();
+  // Also allow tap anywhere — unlock audio on mobile then start game
+  const handleTap = () => {
+    unlockAudio();
+    // Small delay so AudioContext can resume before navigating
+    setTimeout(startGame, 80);
+  };
 
   // Arc for circular progress (0→1)
   const progress = (COUNTDOWN_SEC - counter) / COUNTDOWN_SEC;
