@@ -14,6 +14,7 @@ export default function GamePage() {
 
   const tableName = searchParams.get('table_name') || 'default';
   const maxTimeParam = searchParams.get('max_time');
+  const skipDemo = searchParams.get('skip_demo') === '1';
   const config = GAME_CONFIGS[gameType] || GAME_CONFIGS.default;
   const maxTime = maxTimeParam ? parseInt(maxTimeParam, 10) : config.maxTime;
 
@@ -26,6 +27,7 @@ export default function GamePage() {
       gameType={gameType}
       tableName={tableName}
       maxTime={maxTime}
+      skipDemo={skipDemo}
       onGameEnd={handleGameEnd}
     />
   );

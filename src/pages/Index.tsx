@@ -8,7 +8,7 @@ const Index = () => {
   const navigate = useNavigate();
   const [counter, setCounter] = useState(COUNTDOWN_SEC);
 
-  const startGame = () => navigate('/webview/games/shooter?table_name=demo');
+  const startGame = () => navigate('/webview/games/shooter?table_name=demo&skip_demo=1');
 
   // Countdown then auto-navigate
   useEffect(() => {
