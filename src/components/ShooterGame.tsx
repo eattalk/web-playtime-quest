@@ -46,6 +46,7 @@ interface ShooterGameProps {
   maxTime?: number;
   onGameEnd?: (score: number) => void;
   demoOnly?: boolean;  // renders demo canvas only, no overlay UI
+  skipDemo?: boolean;  // skips demo phase, starts countdown immediately
 }
 
 const rand = (min: number, max: number) => Math.random() * (max - min) + min;
@@ -74,9 +75,9 @@ const DEMO_WAYPOINTS = [
   [0.15, 0.65], [0.85, 0.35], [0.5, 0.8],
 ] as const;
 
-export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOnly = false }: ShooterGameProps) {
+export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOnly = false, skipDemo = false }: ShooterGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [phase, setPhase] = useState<GamePhase>('demo');
+  const [phase, setPhase] = useState<GamePhase>(skipDemo ? 'countdown' : 'demo');
   const [countdown, setCountdown] = useState(3);
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(MAX_LIVES);
@@ -98,7 +99,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     keys: new Set<string>(),
     touchX: null as number | null,
     touchY: null as number | null,
-    phase: 'demo' as GamePhase,
+    phase: (skipDemo ? 'countdown' : 'demo') as GamePhase,
     maxTimeMs: maxTime * 1000,
     gameplayEnded: false,
     loopRunning: false,
