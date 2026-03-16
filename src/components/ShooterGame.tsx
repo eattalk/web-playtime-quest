@@ -100,6 +100,8 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     keys: new Set<string>(),
     touchX: null as number | null,
     touchY: null as number | null,
+    touchAnchorX: null as number | null,
+    touchAnchorY: null as number | null,
     phase: (skipDemo ? 'countdown' : 'demo') as GamePhase,
     maxTimeMs: maxTime * 1000,
     gameplayEnded: false,
