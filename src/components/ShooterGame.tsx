@@ -650,18 +650,15 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
       if (g.keys.has('ArrowUp') || g.keys.has('w')) g.player.y -= spd;
       if (g.keys.has('ArrowDown') || g.keys.has('s')) g.player.y += spd;
 
-      if (g.touchX !== null && g.touchY !== null) {
-        const canvas = canvasRef.current;
-        const rect = canvas?.getBoundingClientRect();
-        const touchCanvasX = rect ? (g.touchX - rect.left) * (canvas!.width / rect.width) : g.touchX;
-        const touchCanvasY = rect ? (g.touchY - rect.top) * (canvas!.height / rect.height) : g.touchY;
-        const cx = g.player.x + g.player.w / 2;
-        const cy = g.player.y + g.player.h / 2;
-        const dx = touchCanvasX - cx;
-        const dy = touchCanvasY - cy;
+      if (g.touchX !== null && g.touchY !== null && g.touchAnchorX !== null && g.touchAnchorY !== null) {
+        const dx = g.touchX - g.touchAnchorX;
+        const dy = g.touchY - g.touchAnchorY;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist > 4) {
-          const move = Math.min(PLAYER_SPEED * dt, dist);
+        const DEAD_ZONE = 8;
+        if (dist > DEAD_ZONE) {
+          // Speed scales with drag distance, capped at PLAYER_SPEED
+          const intensity = Math.min(dist / 60, 1);
+          const move = PLAYER_SPEED * intensity * dt;
           g.player.x += (dx / dist) * move;
           g.player.y += (dy / dist) * move;
         }
