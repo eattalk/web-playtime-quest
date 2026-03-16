@@ -15,15 +15,21 @@ const Index = () => {
     return () => stopBGM(0.4);
   }, []);
 
+  // Countdown then auto-navigate
+  useEffect(() => {
+    if (counter <= 0) { startGame(); return; }
+    const t = setTimeout(() => setCounter(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [counter]);
+
   const startGame = () => {
     stopBGM(0.4);
     navigate('/webview/games/shooter?table_name=demo&skip_demo=1');
   };
 
-  // Also allow tap anywhere — unlock audio on mobile then start game
+  // Tap anywhere — unlock audio on mobile then start game immediately
   const handleTap = () => {
     unlockAudio();
-    // Small delay so AudioContext can resume before navigating
     setTimeout(startGame, 80);
   };
 
