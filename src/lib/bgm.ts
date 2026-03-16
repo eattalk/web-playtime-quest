@@ -6,16 +6,34 @@ let audioCtx: AudioContext | null = null;
 let masterGain: GainNode | null = null;
 let stopFns: Array<() => void> = [];
 let currentMode: string | null = null;
+let pendingMode: string | null = null;
 
 function getCtx() {
   if (!audioCtx) {
-    audioCtx = new AudioContext();
+    audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     masterGain = audioCtx.createGain();
     masterGain.gain.setValueAtTime(0.38, audioCtx.currentTime);
     masterGain.connect(audioCtx.destination);
   }
   if (audioCtx.state === 'suspended') audioCtx.resume();
   return { ctx: audioCtx, master: masterGain! };
+}
+
+// ── Unlock audio on first user gesture (required for mobile browsers) ─────
+export function unlockAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.setValueAtTime(0.38, audioCtx.currentTime);
+    masterGain.connect(audioCtx.destination);
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume().then(() => {
+      // If a mode was queued before unlock, start it now
+      if (pendingMode === 'intro') { pendingMode = null; startIntroBGM(); }
+      else if (pendingMode === 'play') { pendingMode = null; startGameBGM(); }
+    });
+  }
 }
 
 function stopAll() {
@@ -63,6 +81,11 @@ const NOTE = {
 // ── INTRO BGM — Ambient space pad with slow melody ───
 export function startIntroBGM() {
   if (currentMode === 'intro') return;
+  // On mobile, AudioContext may not exist yet — queue and wait for unlock
+  if (!audioCtx || audioCtx.state === 'suspended') {
+    pendingMode = 'intro';
+    return;
+  }
   stopAll();
   currentMode = 'intro';
   const { ctx, master } = getCtx();
@@ -156,6 +179,10 @@ export function startIntroBGM() {
 // ── GAMEPLAY BGM — Driving electronic beat ────────────
 export function startGameBGM() {
   if (currentMode === 'play') return;
+  if (!audioCtx || audioCtx.state === 'suspended') {
+    pendingMode = 'play';
+    return;
+  }
   stopAll();
   currentMode = 'play';
   const { ctx, master } = getCtx();

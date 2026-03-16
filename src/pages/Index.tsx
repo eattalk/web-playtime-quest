@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import ShooterGame from '@/components/ShooterGame';
-import { startIntroBGM, stopBGM } from '@/lib/bgm';
+import { startIntroBGM, stopBGM, unlockAudio } from '@/lib/bgm';
 
 const COUNTDOWN_SEC = 5;
 
@@ -9,12 +9,7 @@ const Index = () => {
   const navigate = useNavigate();
   const [counter, setCounter] = useState(COUNTDOWN_SEC);
 
-  const startGame = () => {
-    stopBGM(0.4);
-    navigate('/webview/games/shooter?table_name=demo&skip_demo=1');
-  };
-
-  // Start intro BGM on mount
+  // Start intro BGM on mount (desktop), unlock + start on first tap (mobile)
   useEffect(() => {
     startIntroBGM();
     return () => stopBGM(0.4);
@@ -27,8 +22,16 @@ const Index = () => {
     return () => clearTimeout(t);
   }, [counter]);
 
-  // Also allow tap anywhere on the overlay
-  const handleTap = () => startGame();
+  const startGame = () => {
+    stopBGM(0.4);
+    navigate('/webview/games/shooter?table_name=demo&skip_demo=1');
+  };
+
+  // Tap anywhere — unlock audio on mobile then start game immediately
+  const handleTap = () => {
+    unlockAudio();
+    setTimeout(startGame, 80);
+  };
 
   // Arc for circular progress (0→1)
   const progress = (COUNTDOWN_SEC - counter) / COUNTDOWN_SEC;
