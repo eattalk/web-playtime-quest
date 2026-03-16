@@ -3,6 +3,7 @@ import {
   playShoot, playStarCollect, playBombHit, playBombDestroy,
   playCountdown, playCountdownGo, playLevelUp, playGameOver,
 } from '@/lib/sfx';
+import { startGameBGM, stopBGM } from '@/lib/bgm';
 
 // ── Config (all per-second units) ───────────────────
 const GAME_DURATION   = 30_000;          // ms
