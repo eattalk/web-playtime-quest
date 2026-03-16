@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import ShooterGame from '@/components/ShooterGame';
-import { startIntroBGM, stopBGM } from '@/lib/bgm';
+import { startIntroBGM, stopBGM, unlockAudio } from '@/lib/bgm';
 
 const COUNTDOWN_SEC = 5;
 
