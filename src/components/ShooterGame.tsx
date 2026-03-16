@@ -649,12 +649,20 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
       if (g.keys.has('ArrowDown') || g.keys.has('s')) g.player.y += spd;
 
       if (g.touchX !== null && g.touchY !== null) {
-        const dx = g.touchX - (g.player.x + g.player.w / 2);
-        const dy = g.touchY - (g.player.y + g.player.h / 2);
-        // dt-based lerp: factor = 1 - (1-0.12)^(dt*60)
-        const lerpFactor = 1 - Math.pow(0.88, dt * 60);
-        g.player.x += dx * lerpFactor;
-        g.player.y += dy * lerpFactor;
+        const canvas = canvasRef.current;
+        const rect = canvas?.getBoundingClientRect();
+        const touchCanvasX = rect ? (g.touchX - rect.left) * (canvas!.width / rect.width) : g.touchX;
+        const touchCanvasY = rect ? (g.touchY - rect.top) * (canvas!.height / rect.height) : g.touchY;
+        const cx = g.player.x + g.player.w / 2;
+        const cy = g.player.y + g.player.h / 2;
+        const dx = touchCanvasX - cx;
+        const dy = touchCanvasY - cy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 4) {
+          const move = Math.min(PLAYER_SPEED * dt, dist);
+          g.player.x += (dx / dist) * move;
+          g.player.y += (dy / dist) * move;
+        }
       }
 
       g.player.x = Math.max(0, Math.min(w - g.player.w, g.player.x));
