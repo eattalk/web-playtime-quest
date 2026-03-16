@@ -1047,17 +1047,27 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     };
     const onKU = (e: KeyboardEvent) => gs.current.keys.delete(e.key);
     const onTS = (e: TouchEvent) => {
+      e.preventDefault();
       if (gs.current.phase === 'demo') { launchCountdown(); return; }
+      // 드래그 기준점 설정
+      gs.current.touchAnchorX = e.touches[0].clientX;
+      gs.current.touchAnchorY = e.touches[0].clientY;
       gs.current.touchX = e.touches[0].clientX;
       gs.current.touchY = e.touches[0].clientY;
     };
     const onTM = (e: TouchEvent) => {
       e.preventDefault();
       if (gs.current.phase === 'demo') return;
+      // 현재 위치만 업데이트 (기준점은 유지)
       gs.current.touchX = e.touches[0].clientX;
       gs.current.touchY = e.touches[0].clientY;
     };
-    const onTE = () => { gs.current.touchX = null; gs.current.touchY = null; };
+    const onTE = () => {
+      gs.current.touchX = null;
+      gs.current.touchY = null;
+      gs.current.touchAnchorX = null;
+      gs.current.touchAnchorY = null;
+    };
     const onClick = () => { if (gs.current.phase === 'demo') launchCountdown(); };
 
     window.addEventListener('keydown', onKD);
