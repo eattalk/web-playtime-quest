@@ -577,24 +577,23 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
       ring.addColorStop(1,hsl(190,100,60,0));
       ctx.fillStyle=ring; ctx.beginPath(); ctx.arc(w/2,h/2,ringR,0,Math.PI*2); ctx.fill();
 
-      // Title
-      ctx.save();
-      ctx.textAlign='center';
-      const titleScale = 1 + Math.sin(timestamp*0.0015)*0.03;
-      ctx.translate(w/2, h*0.28);
-      ctx.scale(titleScale,titleScale);
-      ctx.font='900 clamp(28px,6vw,64px) Orbitron,monospace';
-      ctx.shadowColor=hsl(190,100,60); ctx.shadowBlur=40;
-      ctx.fillStyle=hsl(190,100,90);
-      ctx.fillText('SPACE SHOOTER',0,0);
-      ctx.shadowBlur=0;
-      ctx.font='600 clamp(12px,2.5vw,22px) Orbitron,monospace';
-      ctx.fillStyle=hsl(190,100,70,0.8);
-      ctx.fillText('TAP ANYWHERE TO PLAY',0, Math.max(36, Math.min(5*h/100, 56)));
-      ctx.restore();
-
-      // Tap to start — pulsing (hidden in demoOnly mode)
+      // Title & tap prompt — hidden in demoOnly (Index overlay handles UI)
       if (!demoOnly) {
+        ctx.save();
+        ctx.textAlign='center';
+        const titleScale = 1 + Math.sin(timestamp*0.0015)*0.03;
+        ctx.translate(w/2, h*0.28);
+        ctx.scale(titleScale,titleScale);
+        ctx.font='900 clamp(28px,6vw,64px) Orbitron,monospace';
+        ctx.shadowColor=hsl(190,100,60); ctx.shadowBlur=40;
+        ctx.fillStyle=hsl(190,100,90);
+        ctx.fillText('SPACE SHOOTER',0,0);
+        ctx.shadowBlur=0;
+        ctx.font='600 clamp(12px,2.5vw,22px) Orbitron,monospace';
+        ctx.fillStyle=hsl(190,100,70,0.8);
+        ctx.fillText('TAP ANYWHERE TO PLAY',0, Math.max(36, Math.min(5*h/100, 56)));
+        ctx.restore();
+
         const tapAlpha = 0.6 + Math.sin(timestamp * 0.004) * 0.4;
         ctx.font = `700 clamp(14px,3vw,26px) Orbitron,monospace`;
         ctx.textAlign = 'center';
