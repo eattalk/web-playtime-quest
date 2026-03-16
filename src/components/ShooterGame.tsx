@@ -706,35 +706,35 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
         g.lastStar = elapsedSec;
       }
 
-      // Spawn bombs — intervals in seconds
-      const bombInterval = Math.max(0.015, 0.09 - elapsedMs * 0.000003);
+      // Spawn bombs — intervals in seconds (완화된 난이도)
+      const bombInterval = Math.max(0.06, 0.22 - elapsedMs * 0.000004);
       const timeSinceLastBomb = elapsedSec - g.lastBomb;
       if (timeSinceLastBomb > bombInterval) {
         const diffRatio = elapsedMs / GAME_DURATION; // 0→1
-        const burstCount = elapsedMs > 20000 ? (Math.random() < 0.5 ? 3 : 2) :
-                           elapsedMs > 10000 ? (Math.random() < 0.45 ? 2 : 1) : 1;
+        const burstCount = elapsedMs > 22000 ? (Math.random() < 0.35 ? 2 : 1) :
+                           elapsedMs > 14000 ? (Math.random() < 0.25 ? 2 : 1) : 1;
 
         for (let b = 0; b < burstCount; b++) {
-          // 45% chance to aim near player — some pressure but still escapable
-          const targeted = Math.random() < 0.45;
+          // 25% chance to aim near player (기존 45%에서 완화)
+          const targeted = Math.random() < 0.25;
           const bx = targeted
-            ? g.player.x + g.player.w / 2 + rand(-30, 30)
+            ? g.player.x + g.player.w / 2 + rand(-40, 40)
             : rand(20, w - 20);
           const by = b === 0 ? -20 : rand(-60, -20);
-          const spd = rand(160, 340) * difficultyMult;
+          const spd = rand(120, 260) * difficultyMult;
 
           // Pick pattern weighted by difficulty
           const roll = Math.random();
           let pattern: BombPattern;
-          if (targeted && diffRatio > 0.3)           pattern = 'homing';
+          if (targeted && diffRatio > 0.4)           pattern = 'homing';
           else if (targeted)                         pattern = 'straight';
-          else if (roll < 0.12)                      pattern = 'straight';
-          else if (roll < 0.27)                      pattern = 'sine';
-          else if (roll < 0.41)                      pattern = 'zigzag';
-          else if (roll < 0.54)                      pattern = 'diagonal';
-          else if (roll < 0.65 && diffRatio > 0.15) pattern = 'boomerang';
-          else if (roll < 0.77 && diffRatio > 0.30) pattern = 'spiral';
-          else if (roll < 0.90 && diffRatio > 0.45) pattern = 'homing';
+          else if (roll < 0.15)                      pattern = 'straight';
+          else if (roll < 0.30)                      pattern = 'sine';
+          else if (roll < 0.44)                      pattern = 'zigzag';
+          else if (roll < 0.56)                      pattern = 'diagonal';
+          else if (roll < 0.67 && diffRatio > 0.20) pattern = 'boomerang';
+          else if (roll < 0.78 && diffRatio > 0.35) pattern = 'spiral';
+          else if (roll < 0.88 && diffRatio > 0.50) pattern = 'homing';
           else                                       pattern = 'sine';
 
           let vx = 0, vy = 0, sineAmp = 0, sineFreq = 0;
