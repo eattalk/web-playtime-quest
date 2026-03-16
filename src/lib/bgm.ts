@@ -81,6 +81,11 @@ const NOTE = {
 // ── INTRO BGM — Ambient space pad with slow melody ───
 export function startIntroBGM() {
   if (currentMode === 'intro') return;
+  // On mobile, AudioContext may not exist yet — queue and wait for unlock
+  if (!audioCtx || audioCtx.state === 'suspended') {
+    pendingMode = 'intro';
+    return;
+  }
   stopAll();
   currentMode = 'intro';
   const { ctx, master } = getCtx();
