@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import ShooterGame from '@/components/ShooterGame';
+import { startIntroBGM, stopBGM } from '@/lib/bgm';
 
 const COUNTDOWN_SEC = 5;
 
@@ -8,7 +9,16 @@ const Index = () => {
   const navigate = useNavigate();
   const [counter, setCounter] = useState(COUNTDOWN_SEC);
 
-  const startGame = () => navigate('/webview/games/shooter?table_name=demo&skip_demo=1');
+  const startGame = () => {
+    stopBGM(0.4);
+    navigate('/webview/games/shooter?table_name=demo&skip_demo=1');
+  };
+
+  // Start intro BGM on mount
+  useEffect(() => {
+    startIntroBGM();
+    return () => stopBGM(0.4);
+  }, []);
 
   // Countdown then auto-navigate
   useEffect(() => {

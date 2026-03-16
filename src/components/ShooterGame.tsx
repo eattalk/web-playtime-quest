@@ -3,6 +3,7 @@ import {
   playShoot, playStarCollect, playBombHit, playBombDestroy,
   playCountdown, playCountdownGo, playLevelUp, playGameOver,
 } from '@/lib/sfx';
+import { startGameBGM, stopBGM } from '@/lib/bgm';
 
 // ── Config (all per-second units) ───────────────────
 const GAME_DURATION   = 30_000;          // ms
@@ -1136,6 +1137,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
       g.prevBulletLevel = 0;
       setPhase('playing');
       playCountdownGo();
+      startGameBGM();   // 🎵 game music starts
       return;
     }
     playCountdown();
@@ -1143,7 +1145,13 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     return () => clearTimeout(t);
   }, [phase, countdown]);
 
-  // ── Waiting phase removed — game ends immediately ──
+  // ── Stop BGM when game ends ────────────────────────
+  useEffect(() => {
+    if (phase === 'done') stopBGM(1.5);
+  }, [phase]);
+
+  // cleanup on unmount
+  useEffect(() => () => stopBGM(0.3), []);
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-game-bg select-none">
