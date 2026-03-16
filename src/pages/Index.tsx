@@ -83,7 +83,7 @@ const Index = () => {
           className="font-game text-xl text-primary/70 animate-pulse"
           style={{ textShadow: '0 0 12px hsl(190 100% 60% / 0.5)' }}
         >
-          탭하면 바로 시작 →
+          TAP ANYWHERE TO START →
         </p>
       </div>
     </div>
