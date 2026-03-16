@@ -41,10 +41,11 @@ interface BgStar extends Vec2 { size: number; brightness: number; speed: number;
 type GamePhase = 'demo' | 'instructions' | 'countdown' | 'playing' | 'gameover' | 'waiting' | 'done';
 
 interface ShooterGameProps {
-  gameType: string;
-  tableName: string;
+  gameType?: string;
+  tableName?: string;
   maxTime?: number;
-  onGameEnd: (score: number) => void;
+  onGameEnd?: (score: number) => void;
+  demoOnly?: boolean;  // renders demo canvas only, no overlay UI
 }
 
 const rand = (min: number, max: number) => Math.random() * (max - min) + min;
@@ -73,7 +74,7 @@ const DEMO_WAYPOINTS = [
   [0.15, 0.65], [0.85, 0.35], [0.5, 0.8],
 ] as const;
 
-export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProps) {
+export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOnly = false }: ShooterGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [phase, setPhase] = useState<GamePhase>('demo');
   const [countdown, setCountdown] = useState(3);
@@ -576,34 +577,35 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
       ring.addColorStop(1,hsl(190,100,60,0));
       ctx.fillStyle=ring; ctx.beginPath(); ctx.arc(w/2,h/2,ringR,0,Math.PI*2); ctx.fill();
 
-      // Title
-      ctx.save();
-      ctx.textAlign='center';
-      const titleScale = 1 + Math.sin(timestamp*0.0015)*0.03;
-      ctx.translate(w/2, h*0.28);
-      ctx.scale(titleScale,titleScale);
-      ctx.font='900 clamp(28px,6vw,64px) Orbitron,monospace';
-      ctx.shadowColor=hsl(190,100,60); ctx.shadowBlur=40;
-      ctx.fillStyle=hsl(190,100,90);
-      ctx.fillText('SPACE SHOOTER',0,0);
-      ctx.shadowBlur=0;
-      ctx.font='600 clamp(12px,2.5vw,22px) Orbitron,monospace';
-      ctx.fillStyle=hsl(190,100,70,0.8);
-      ctx.fillText('TAP ANYWHERE TO PLAY',0, Math.max(36, Math.min(5*h/100, 56)));
-      ctx.restore();
+      // Title & tap prompt — hidden in demoOnly (Index overlay handles UI)
+      if (!demoOnly) {
+        ctx.save();
+        ctx.textAlign='center';
+        const titleScale = 1 + Math.sin(timestamp*0.0015)*0.03;
+        ctx.translate(w/2, h*0.28);
+        ctx.scale(titleScale,titleScale);
+        ctx.font='900 clamp(28px,6vw,64px) Orbitron,monospace';
+        ctx.shadowColor=hsl(190,100,60); ctx.shadowBlur=40;
+        ctx.fillStyle=hsl(190,100,90);
+        ctx.fillText('SPACE SHOOTER',0,0);
+        ctx.shadowBlur=0;
+        ctx.font='600 clamp(12px,2.5vw,22px) Orbitron,monospace';
+        ctx.fillStyle=hsl(190,100,70,0.8);
+        ctx.fillText('TAP ANYWHERE TO PLAY',0, Math.max(36, Math.min(5*h/100, 56)));
+        ctx.restore();
 
-      // Tap to start — pulsing
-      const tapAlpha = 0.6 + Math.sin(timestamp * 0.004) * 0.4;
-      ctx.font = `700 clamp(14px,3vw,26px) Orbitron,monospace`;
-      ctx.textAlign = 'center';
-      const tapTxt = '👆 TAP TO START';
-      const tapTw = ctx.measureText(tapTxt).width;
-      ctx.fillStyle = hsl(225,30,10,0.65);
-      ctx.beginPath(); ctx.roundRect(w/2-tapTw/2-24, h*0.88-22, tapTw+48, 38, 19); ctx.fill();
-      ctx.fillStyle = hsl(190,100,80,tapAlpha);
-      ctx.shadowColor = hsl(190,100,60); ctx.shadowBlur = 18;
-      ctx.fillText(tapTxt, w/2, h*0.88);
-      ctx.shadowBlur = 0;
+        const tapAlpha = 0.6 + Math.sin(timestamp * 0.004) * 0.4;
+        ctx.font = `700 clamp(14px,3vw,26px) Orbitron,monospace`;
+        ctx.textAlign = 'center';
+        const tapTxt = '👆 TAP TO START';
+        const tapTw = ctx.measureText(tapTxt).width;
+        ctx.fillStyle = hsl(225,30,10,0.65);
+        ctx.beginPath(); ctx.roundRect(w/2-tapTw/2-24, h*0.88-22, tapTw+48, 38, 19); ctx.fill();
+        ctx.fillStyle = hsl(190,100,80,tapAlpha);
+        ctx.shadowColor = hsl(190,100,60); ctx.shadowBlur = 18;
+        ctx.fillText(tapTxt, w/2, h*0.88);
+        ctx.shadowBlur = 0;
+      }
 
       ctx.restore();
       return;
@@ -1079,10 +1081,10 @@ export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProp
 
   // ── Demo auto-end (8 s) ───────────────────────────
   useEffect(() => {
-    if (phase !== 'demo') return;
+    if (phase !== 'demo' || demoOnly) return;
     const t = setTimeout(() => launchCountdown(), 8000);
     return () => clearTimeout(t);
-  }, [phase]);
+  }, [phase, demoOnly]);
 
   // ── Launch countdown & fully reset game state ─────
   const launchCountdown = useCallback(() => {
