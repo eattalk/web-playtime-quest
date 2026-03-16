@@ -179,6 +179,10 @@ export function startIntroBGM() {
 // ── GAMEPLAY BGM — Driving electronic beat ────────────
 export function startGameBGM() {
   if (currentMode === 'play') return;
+  if (!audioCtx || audioCtx.state === 'suspended') {
+    pendingMode = 'play';
+    return;
+  }
   stopAll();
   currentMode = 'play';
   const { ctx, master } = getCtx();
