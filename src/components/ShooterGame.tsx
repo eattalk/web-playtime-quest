@@ -41,10 +41,11 @@ interface BgStar extends Vec2 { size: number; brightness: number; speed: number;
 type GamePhase = 'demo' | 'instructions' | 'countdown' | 'playing' | 'gameover' | 'waiting' | 'done';
 
 interface ShooterGameProps {
-  gameType: string;
-  tableName: string;
+  gameType?: string;
+  tableName?: string;
   maxTime?: number;
-  onGameEnd: (score: number) => void;
+  onGameEnd?: (score: number) => void;
+  demoOnly?: boolean;  // renders demo canvas only, no overlay UI
 }
 
 const rand = (min: number, max: number) => Math.random() * (max - min) + min;
