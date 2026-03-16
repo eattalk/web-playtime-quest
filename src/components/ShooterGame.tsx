@@ -74,7 +74,7 @@ const DEMO_WAYPOINTS = [
   [0.15, 0.65], [0.85, 0.35], [0.5, 0.8],
 ] as const;
 
-export default function ShooterGame({ maxTime = 45, onGameEnd }: ShooterGameProps) {
+export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOnly = false }: ShooterGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [phase, setPhase] = useState<GamePhase>('demo');
   const [countdown, setCountdown] = useState(3);
