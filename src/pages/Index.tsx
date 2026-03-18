@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import ShooterGame from '@/components/ShooterGame';
 import { startIntroBGM, stopBGM, unlockAudio } from '@/lib/bgm';
