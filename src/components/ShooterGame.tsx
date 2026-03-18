@@ -1006,7 +1006,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     if (!g.gameplayEnded && (elapsedMs >= GAME_DURATION || elapsedMs >= g.maxTimeMs)) {
       g.gameplayEnded = true;
       g.phase = 'done';
-      const survivedMs = Math.floor(elapsedMs);
+      const survivedMs = Math.min(Math.floor(elapsedMs), 99999);
       playGameOver();
       setPhase('done');
       ctx.restore();
