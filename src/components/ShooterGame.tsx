@@ -883,7 +883,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
               g.phase = 'done';
               playGameOver();
               setPhase('done');
-              const survivedMs = Math.floor(performance.now() - g.startTime);
+              const survivedMs = Math.min(Math.floor(performance.now() - g.startTime), 99999);
               onGameEnd(g.score * 100000 + survivedMs);
             }
           }
@@ -1006,7 +1006,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     if (!g.gameplayEnded && (elapsedMs >= GAME_DURATION || elapsedMs >= g.maxTimeMs)) {
       g.gameplayEnded = true;
       g.phase = 'done';
-      const survivedMs = Math.floor(elapsedMs);
+      const survivedMs = Math.min(Math.floor(elapsedMs), 99999);
       playGameOver();
       setPhase('done');
       ctx.restore();
