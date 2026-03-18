@@ -7,6 +7,7 @@ const COUNTDOWN_SEC = 5;
 
 const Index = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [counter, setCounter] = useState(COUNTDOWN_SEC);
 
   // Start intro BGM on mount (desktop), unlock + start on first tap (mobile)
@@ -24,7 +25,10 @@ const Index = () => {
 
   const startGame = () => {
     stopBGM(0.4);
-    navigate('/webview/games/shooter?table_name=demo&skip_demo=1');
+    // Forward all incoming query params as-is (table_name, max_time, etc.)
+    const params = searchParams.toString();
+    const query = params ? `?${params}&skip_demo=1` : '?skip_demo=1';
+    navigate(`/webview/games/shooter${query}`);
   };
 
   // Tap anywhere — unlock audio on mobile then start game immediately
