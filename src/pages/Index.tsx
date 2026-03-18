@@ -41,7 +41,7 @@ const Index = () => {
 
   return (
     <div
-      className="relative w-full h-screen overflow-hidden select-none cursor-pointer"
+      className="relative w-full h-full overflow-hidden select-none cursor-pointer"
       onClick={handleTap}
     >
       {/* Demo canvas in background */}

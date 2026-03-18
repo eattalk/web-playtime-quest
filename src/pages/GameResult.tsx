@@ -12,7 +12,7 @@ export default function GameResult() {
   const displayScore = raw >= 100000 ? `${baseScore}.${decimalPart}` : String(raw);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
+    <div className="flex min-h-full items-center justify-center bg-background">
       <div className="text-center space-y-6 px-6">
         <h1 className="font-game text-4xl md:text-6xl text-primary text-glow">
           MISSION COMPLETE
