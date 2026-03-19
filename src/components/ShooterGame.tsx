@@ -66,7 +66,7 @@ function getBulletConfig(level: number) {
     { w: 26, h: 42, speed: 780, color: 290, name: 'Machinegun', interval: 0.040 },
     { w: 32, h: 48, speed: 840, color: 180, name: 'GODMODE',    interval: 0.030 },
   ];
-  return configs[Math.min(level, configs.length - 1)];
+  return configs[Math.max(0, Math.min(level, configs.length - 1))] ?? configs[0];
 }
 
 // ── AI demo waypoints (relative to canvas) ───────────
@@ -617,7 +617,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     // Once gameplay ended, freeze immediately — no more updates or level-ups
     if (g.gameplayEnded) { ctx.restore(); return; }
 
-    const elapsedMs = timestamp - g.startTime;
+    const elapsedMs = Math.max(0, timestamp - g.startTime);
     const elapsedSec = elapsedMs / 1000;
     const bLevel = Math.min(Math.floor(elapsedMs / 4_000), 7);
     const gameplayActive = elapsedMs < GAME_DURATION && g.lives > 0;
@@ -1162,7 +1162,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
   useEffect(() => () => stopBGM(0.3), []);
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-game-bg select-none">
+    <div className="relative w-full h-full overflow-hidden bg-game-bg select-none">
       <canvas ref={canvasRef} className="absolute inset-0" />
 
       {/* Countdown */}
