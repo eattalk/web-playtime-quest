@@ -710,7 +710,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
       const bombInterval = Math.max(0.015, 0.09 - elapsedMs * 0.000003);
       const timeSinceLastBomb = elapsedSec - g.lastBomb;
       if (timeSinceLastBomb > bombInterval) {
-        const diffRatio = elapsedMs / GAME_DURATION; // 0→1
+        const diffRatio = elapsedMs / g.maxTimeMs; // 0→1
         const burstCount = elapsedMs > 20000 ? (Math.random() < 0.5 ? 3 : 2) :
                            elapsedMs > 10000 ? (Math.random() < 0.45 ? 2 : 1) : 1;
 
