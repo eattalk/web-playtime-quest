@@ -6,7 +6,7 @@ import {
 import { startGameBGM, stopBGM } from '@/lib/bgm';
 
 // ── Config (all per-second units) ───────────────────
-const GAME_DURATION   = 30_000;          // ms
+// GAME_DURATION removed — use gs.current.maxTimeMs (from maxTime prop) instead
 const PLAYER_SPEED    = 360;             // px/s  (was 6 px/frame × 60fps)
 const MAX_LIVES       = 2;
 const STAR_POINTS     = 10;
