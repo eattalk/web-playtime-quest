@@ -1027,18 +1027,31 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     if (!ctx) return;
 
     const resize = () => {
-      // Use container size (tablet landscape 1200×800 target)
-      canvas.width  = canvas.parentElement?.clientWidth  ?? window.innerWidth;
-      canvas.height = canvas.parentElement?.clientHeight ?? window.innerHeight;
-      gs.current.W  = canvas.width;
-      gs.current.H  = canvas.height;
-      const pw = gs.current.player.w;
-      const ph = gs.current.player.h;
-      gs.current.player.x = canvas.width / 2 - pw / 2;
-      gs.current.player.y = canvas.height - 100;
-      if (gs.current.bgStars.length === 0) initBgStars(canvas.width, canvas.height);
+      // Use container size — fall back to window if container reports 0 (WebView timing issue)
+      const pw = canvas.parentElement?.clientWidth  || 0;
+      const ph = canvas.parentElement?.clientHeight || 0;
+      const w  = pw > 0 ? pw : window.innerWidth;
+      const h  = ph > 0 ? ph : window.innerHeight;
+      canvas.width  = w;
+      canvas.height = h;
+      gs.current.W  = w;
+      gs.current.H  = h;
+      const playerW = gs.current.player.w;
+      const playerH = gs.current.player.h;
+      gs.current.player.x = w / 2 - playerW / 2;
+      gs.current.player.y = h - 100;
+      if (gs.current.bgStars.length === 0) initBgStars(w, h);
     };
     resize();
+
+    // ResizeObserver: re-measure when container grows (fixes WebView 0-size on mount)
+    let roId = 0;
+    const ro = new ResizeObserver(() => {
+      clearTimeout(roId);
+      roId = window.setTimeout(resize, 50);
+    });
+    if (canvas.parentElement) ro.observe(canvas.parentElement);
+
     window.addEventListener('resize', resize);
 
     const onKD = (e: KeyboardEvent) => {
