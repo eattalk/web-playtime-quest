@@ -1091,6 +1091,8 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
 
     return () => {
       cancelAnimationFrame(rafId);
+      ro.disconnect();
+      clearTimeout(roId);
       window.removeEventListener('resize', resize);
       window.removeEventListener('keydown', onKD);
       window.removeEventListener('keyup', onKU);
