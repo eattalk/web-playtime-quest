@@ -1114,7 +1114,8 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
   // ── Launch countdown & fully reset game state ─────
   const launchCountdown = useCallback(() => {
     const g = gs.current;
-    if (g.phase !== 'demo') return; // guard against double-call
+    // Allow from 'demo' phase (tap/auto) or initial 'countdown' (skip_demo=1)
+    if (g.phase !== 'demo' && g.phase !== 'countdown') return;
     // Hard-reset all game state so play starts fresh
     g.phase          = 'countdown';
     g.bullets        = [];
