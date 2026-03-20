@@ -620,7 +620,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     const elapsedMs = Math.max(0, timestamp - g.startTime);
     const elapsedSec = elapsedMs / 1000;
     const bLevel = Math.min(Math.floor(elapsedMs / 4_000), 7);
-    const gameplayActive = elapsedMs < GAME_DURATION && g.lives > 0;
+    const gameplayActive = elapsedMs < g.maxTimeMs && g.lives > 0;
 
     // Level up notification
     if (bLevel > g.prevBulletLevel && bLevel <= 7) {
