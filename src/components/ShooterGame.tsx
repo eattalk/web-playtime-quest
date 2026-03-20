@@ -1003,7 +1003,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     }
 
     // ── Phase transitions — timer only (death handled in collision above) ──
-    if (!g.gameplayEnded && (elapsedMs >= GAME_DURATION || elapsedMs >= g.maxTimeMs)) {
+    if (!g.gameplayEnded && elapsedMs >= g.maxTimeMs) {
       g.gameplayEnded = true;
       g.phase = 'done';
       const survivedMs = Math.min(Math.floor(elapsedMs), 99999);
