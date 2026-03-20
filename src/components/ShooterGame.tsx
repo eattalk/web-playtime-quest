@@ -6,7 +6,7 @@ import {
 import { startGameBGM, stopBGM } from '@/lib/bgm';
 
 // ── Config (all per-second units) ───────────────────
-const GAME_DURATION   = 30_000;          // ms
+// GAME_DURATION removed — use gs.current.maxTimeMs (from maxTime prop) instead
 const PLAYER_SPEED    = 360;             // px/s  (was 6 px/frame × 60fps)
 const MAX_LIVES       = 2;
 const STAR_POINTS     = 10;
@@ -617,10 +617,10 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     // Once gameplay ended, freeze immediately — no more updates or level-ups
     if (g.gameplayEnded) { ctx.restore(); return; }
 
-    const elapsedMs = Math.max(0, timestamp - g.startTime);
+    const elapsedMs = g.startTime > 0 ? Math.max(0, timestamp - g.startTime) : 0;
     const elapsedSec = elapsedMs / 1000;
     const bLevel = Math.min(Math.floor(elapsedMs / 4_000), 7);
-    const gameplayActive = elapsedMs < GAME_DURATION && g.lives > 0;
+    const gameplayActive = elapsedMs < g.maxTimeMs && g.lives > 0;
 
     // Level up notification
     if (bLevel > g.prevBulletLevel && bLevel <= 7) {
@@ -638,7 +638,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     setElapsed(elapsedMs);
 
     // Difficulty: speed multiplier
-    const difficultyMult = 1 + (elapsedMs / GAME_DURATION) * 2.0;
+    const difficultyMult = 1 + (elapsedMs / g.maxTimeMs) * 2.0;
 
     // ── Player movement ──
     if (gameplayActive) {
@@ -710,7 +710,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
       const bombInterval = Math.max(0.015, 0.09 - elapsedMs * 0.000003);
       const timeSinceLastBomb = elapsedSec - g.lastBomb;
       if (timeSinceLastBomb > bombInterval) {
-        const diffRatio = elapsedMs / GAME_DURATION; // 0→1
+        const diffRatio = elapsedMs / g.maxTimeMs; // 0→1
         const burstCount = elapsedMs > 20000 ? (Math.random() < 0.5 ? 3 : 2) :
                            elapsedMs > 10000 ? (Math.random() < 0.45 ? 2 : 1) : 1;
 
@@ -1003,7 +1003,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     }
 
     // ── Phase transitions — timer only (death handled in collision above) ──
-    if (!g.gameplayEnded && (elapsedMs >= GAME_DURATION || elapsedMs >= g.maxTimeMs)) {
+    if (!g.gameplayEnded && elapsedMs >= g.maxTimeMs) {
       g.gameplayEnded = true;
       g.phase = 'done';
       const survivedMs = Math.min(Math.floor(elapsedMs), 99999);
@@ -1111,10 +1111,18 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     return () => clearTimeout(t);
   }, [phase, demoOnly]);
 
+  // ── skip_demo: start countdown immediately on mount ──
+  useEffect(() => {
+    if (!skipDemo) return;
+    // Phase is already 'countdown' from useState; just ensure countdown ticks
+    // (no-op if countdown useEffect already handles it)
+  }, []); // runs once
+
   // ── Launch countdown & fully reset game state ─────
   const launchCountdown = useCallback(() => {
     const g = gs.current;
-    if (g.phase !== 'demo') return; // guard against double-call
+    // Allow from 'demo' phase (tap/auto) or initial 'countdown' (skip_demo=1)
+    if (g.phase !== 'demo' && g.phase !== 'countdown') return;
     // Hard-reset all game state so play starts fresh
     g.phase          = 'countdown';
     g.bullets        = [];
