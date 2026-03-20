@@ -638,7 +638,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     setElapsed(elapsedMs);
 
     // Difficulty: speed multiplier
-    const difficultyMult = 1 + (elapsedMs / GAME_DURATION) * 2.0;
+    const difficultyMult = 1 + (elapsedMs / g.maxTimeMs) * 2.0;
 
     // ── Player movement ──
     if (gameplayActive) {
