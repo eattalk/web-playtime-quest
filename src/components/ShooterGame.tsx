@@ -1111,6 +1111,13 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     return () => clearTimeout(t);
   }, [phase, demoOnly]);
 
+  // ── skip_demo: start countdown immediately on mount ──
+  useEffect(() => {
+    if (!skipDemo) return;
+    // Phase is already 'countdown' from useState; just ensure countdown ticks
+    // (no-op if countdown useEffect already handles it)
+  }, []); // runs once
+
   // ── Launch countdown & fully reset game state ─────
   const launchCountdown = useCallback(() => {
     const g = gs.current;
