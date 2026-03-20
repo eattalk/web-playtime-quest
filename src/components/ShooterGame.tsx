@@ -617,7 +617,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     // Once gameplay ended, freeze immediately — no more updates or level-ups
     if (g.gameplayEnded) { ctx.restore(); return; }
 
-    const elapsedMs = Math.max(0, timestamp - g.startTime);
+    const elapsedMs = g.startTime > 0 ? Math.max(0, timestamp - g.startTime) : 0;
     const elapsedSec = elapsedMs / 1000;
     const bLevel = Math.min(Math.floor(elapsedMs / 4_000), 7);
     const gameplayActive = elapsedMs < g.maxTimeMs && g.lives > 0;
