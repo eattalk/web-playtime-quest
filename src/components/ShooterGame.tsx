@@ -54,6 +54,30 @@ const rand = (min: number, max: number) => Math.random() * (max - min) + min;
 const hsl = (h: number, s: number, l: number, a = 1) =>
   a < 1 ? `hsla(${h},${s}%,${l}%,${a})` : `hsl(${h},${s}%,${l}%)`;
 
+const drawRoundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
+  const radius = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+  const roundRect = (ctx as CanvasRenderingContext2D & {
+    roundRect?: (x: number, y: number, w: number, h: number, radii?: number) => void;
+  }).roundRect;
+
+  ctx.beginPath();
+  if (typeof roundRect === 'function') {
+    roundRect.call(ctx, x, y, w, h, radius);
+    return;
+  }
+
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + w - radius, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+  ctx.lineTo(x + w, y + h - radius);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+  ctx.lineTo(x + radius, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+};
+
 // Bullet level config — speeds in px/s, intervals in seconds
 function getBulletConfig(level: number) {
   const configs = [
@@ -341,14 +365,12 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     coreGrad.addColorStop(0.5, hsl(cfg.color, 100, 70));
     coreGrad.addColorStop(1, hsl(cfg.color + 20, 100, 50));
     ctx.fillStyle = coreGrad;
-    ctx.beginPath();
-    ctx.roundRect(-b.w / 2, -b.h / 2, b.w, b.h, b.w / 2);
+    drawRoundRect(ctx, -b.w / 2, -b.h / 2, b.w, b.h, b.w / 2);
     ctx.fill();
 
     if (b.level >= 3) {
       ctx.fillStyle = hsl(cfg.color, 50, 95, 0.8);
-      ctx.beginPath();
-      ctx.roundRect(-b.w * 0.2, -b.h * 0.4, b.w * 0.4, b.h * 0.8, b.w * 0.2);
+      drawRoundRect(ctx, -b.w * 0.2, -b.h * 0.4, b.w * 0.4, b.h * 0.8, b.w * 0.2);
       ctx.fill();
     }
 
@@ -366,8 +388,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     ctx.textAlign = 'center';
     const tw = ctx.measureText(timeStr).width + 30;
     ctx.fillStyle = hsl(230, 30, 6, 0.5);
-    ctx.beginPath();
-    ctx.roundRect(w / 2 - tw / 2, pad - 4, tw, 32, 8);
+    drawRoundRect(ctx, w / 2 - tw / 2, pad - 4, tw, 32, 8);
     ctx.fill();
     ctx.fillStyle = hsl(190, 100, 80, 0.9);
     ctx.fillText(timeStr, w / 2, pad + 20);
@@ -602,7 +623,7 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
         const tapTxt = '👆 TAP TO START';
         const tapTw = ctx.measureText(tapTxt).width;
         ctx.fillStyle = hsl(225,30,10,0.65);
-        ctx.beginPath(); ctx.roundRect(w/2-tapTw/2-24, h*0.88-22, tapTw+48, 38, 19); ctx.fill();
+        drawRoundRect(ctx, w/2-tapTw/2-24, h*0.88-22, tapTw+48, 38, 19); ctx.fill();
         ctx.fillStyle = hsl(190,100,80,tapAlpha);
         ctx.shadowColor = hsl(190,100,60); ctx.shadowBlur = 18;
         ctx.fillText(tapTxt, w/2, h*0.88);
@@ -1046,11 +1067,17 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
 
     // ResizeObserver: re-measure when container grows (fixes WebView 0-size on mount)
     let roId = 0;
-    const ro = new ResizeObserver(() => {
-      clearTimeout(roId);
-      roId = window.setTimeout(resize, 50);
-    });
-    if (canvas.parentElement) ro.observe(canvas.parentElement);
+    let ro: ResizeObserver | null = null;
+    const fallbackResizeTimers: number[] = [];
+    if (typeof ResizeObserver !== 'undefined' && canvas.parentElement) {
+      ro = new ResizeObserver(() => {
+        clearTimeout(roId);
+        roId = window.setTimeout(resize, 50);
+      });
+      ro.observe(canvas.parentElement);
+    } else {
+      fallbackResizeTimers.push(window.setTimeout(resize, 50), window.setTimeout(resize, 250));
+    }
 
     window.addEventListener('resize', resize);
 
@@ -1091,8 +1118,9 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
 
     return () => {
       cancelAnimationFrame(rafId);
-      ro.disconnect();
+      ro?.disconnect();
       clearTimeout(roId);
+      fallbackResizeTimers.forEach(window.clearTimeout);
       window.removeEventListener('resize', resize);
       window.removeEventListener('keydown', onKD);
       window.removeEventListener('keyup', onKU);
@@ -1114,9 +1142,9 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
   // ── skip_demo: start countdown immediately on mount ──
   useEffect(() => {
     if (!skipDemo) return;
-    // Phase is already 'countdown' from useState; just ensure countdown ticks
-    // (no-op if countdown useEffect already handles it)
-  }, []); // runs once
+    if (phase !== 'countdown' || countdown !== 3) return;
+    launchCountdown();
+  }, [skipDemo, phase, countdown, launchCountdown]);
 
   // ── Launch countdown & fully reset game state ─────
   const launchCountdown = useCallback(() => {
