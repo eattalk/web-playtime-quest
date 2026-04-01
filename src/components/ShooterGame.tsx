@@ -1139,13 +1139,6 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     return () => clearTimeout(t);
   }, [phase, demoOnly]);
 
-  // ── skip_demo: start countdown immediately on mount ──
-  useEffect(() => {
-    if (!skipDemo) return;
-    if (phase !== 'countdown' || countdown !== 3) return;
-    launchCountdown();
-  }, [skipDemo, phase, countdown, launchCountdown]);
-
   // ── Launch countdown & fully reset game state ─────
   const launchCountdown = useCallback(() => {
     const g = gs.current;
@@ -1180,6 +1173,13 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     setCountdown(3);
     setPhase('countdown');
   }, []);
+
+  // ── skip_demo: start countdown immediately on mount ──
+  useEffect(() => {
+    if (!skipDemo) return;
+    if (phase !== 'countdown' || countdown !== 3) return;
+    launchCountdown();
+  }, [skipDemo, phase, countdown, launchCountdown]);
 
   // ── Countdown ─────────────────────────────────────
   useEffect(() => {
