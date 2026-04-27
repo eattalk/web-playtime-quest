@@ -1195,6 +1195,10 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     g.demoWaypointIdx = 0;
     g.player.x = g.W / 2 - g.player.w / 2;
     g.player.y = g.H - 100;
+    g.lastPlayerX = g.player.x;
+    g.lastPlayerY = g.player.y;
+    g.idleTime = 0;
+    g.idlePenaltyAcc = 0;
     setScore(0);
     setLives(MAX_LIVES);
     setElapsed(0);
