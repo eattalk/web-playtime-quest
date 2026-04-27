@@ -140,6 +140,11 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     demoStartTime: 0,    // performance.now()
     demoWaypointIdx: 0,
     demoElapsed: 0,      // seconds
+    // anti-AFK: penalize standing still
+    lastPlayerX: 0,
+    lastPlayerY: 0,
+    idleTime: 0,         // seconds without meaningful movement
+    idlePenaltyAcc: 0,   // fractional score penalty accumulator
   });
 
   const initBgStars = useCallback((w: number, h: number) => {
