@@ -7,7 +7,7 @@ export default function GameResult() {
 
   return (
     <div className="flex min-h-full items-center justify-center bg-background">
-      <div className="text-center space-y-6 px-6">
+      <div className="text-center space-y-8 px-6">
         <h1 className="font-game text-4xl md:text-6xl text-primary text-glow">
           MISSION COMPLETE
         </h1>
@@ -17,9 +17,20 @@ export default function GameResult() {
             {score.toLocaleString()}
           </p>
         </div>
-        <p className="font-game-body text-muted-foreground text-sm animate-pulse">
-          Returning to app...
-        </p>
+
+        <div className="pt-4 space-y-3">
+          <p className="font-game text-3xl md:text-5xl text-primary text-glow animate-pulse">
+            다른 플레이어를 기다려주세요
+          </p>
+          <p className="font-game-body text-base md:text-lg text-muted-foreground">
+            Waiting for other players...
+          </p>
+          <div className="flex justify-center gap-2 pt-2">
+            <span className="w-3 h-3 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+            <span className="w-3 h-3 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+            <span className="w-3 h-3 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
+          </div>
+        </div>
       </div>
     </div>
   );

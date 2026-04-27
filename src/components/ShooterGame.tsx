@@ -140,6 +140,11 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     demoStartTime: 0,    // performance.now()
     demoWaypointIdx: 0,
     demoElapsed: 0,      // seconds
+    // anti-AFK: penalize standing still
+    lastPlayerX: 0,
+    lastPlayerY: 0,
+    idleTime: 0,         // seconds without meaningful movement
+    idlePenaltyAcc: 0,   // fractional score penalty accumulator
   });
 
   const initBgStars = useCallback((w: number, h: number) => {
@@ -689,6 +694,30 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
       g.player.x = Math.max(0, Math.min(w - g.player.w, g.player.x));
       g.player.y = Math.max(h * 0.2, Math.min(h - g.player.h - 10, g.player.y));
 
+      // ── Anti-AFK: penalize standing still ──
+      const moveDx = g.player.x - g.lastPlayerX;
+      const moveDy = g.player.y - g.lastPlayerY;
+      const moveDist = Math.sqrt(moveDx * moveDx + moveDy * moveDy);
+      g.lastPlayerX = g.player.x;
+      g.lastPlayerY = g.player.y;
+      // Per-frame movement threshold (~40px/s minimum to count as moving)
+      if (moveDist < 40 * dt) {
+        g.idleTime += dt;
+      } else {
+        g.idleTime = Math.max(0, g.idleTime - dt * 2);
+      }
+      // After 2s idle, drain score (escalates with idle duration)
+      if (g.idleTime > 2 && g.score > 0) {
+        const drainPerSec = Math.min(25, 5 + (g.idleTime - 2) * 4);
+        g.idlePenaltyAcc += drainPerSec * dt;
+        if (g.idlePenaltyAcc >= 1) {
+          const dec = Math.floor(g.idlePenaltyAcc);
+          g.score = Math.max(0, g.score - dec);
+          g.idlePenaltyAcc -= dec;
+          setScore(g.score);
+        }
+      }
+
       // Auto-fire — intervals in seconds now
       const cfg = getBulletConfig(bLevel);
       const timeSinceLastBullet = elapsedSec - g.lastBullet;
@@ -1166,6 +1195,10 @@ export default function ShooterGame({ maxTime = 45, onGameEnd = () => {}, demoOn
     g.demoWaypointIdx = 0;
     g.player.x = g.W / 2 - g.player.w / 2;
     g.player.y = g.H - 100;
+    g.lastPlayerX = g.player.x;
+    g.lastPlayerY = g.player.y;
+    g.idleTime = 0;
+    g.idlePenaltyAcc = 0;
     setScore(0);
     setLives(MAX_LIVES);
     setElapsed(0);
